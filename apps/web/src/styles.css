@@ -415,16 +415,22 @@ textarea {
 .bottom-nav {
   border-top: 1px solid rgba(18, 54, 92, 0.16);
   background: rgba(255, 255, 255, 0.86);
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  min-height: 64px;
+  max-height: calc(68px + env(safe-area-inset-bottom));
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   backdrop-filter: blur(12px);
+  overflow: hidden;
 }
 
 .bottom-nav button {
-  padding: 8px 5px;
-  font-size: 11px;
+  min-height: 50px;
+  max-height: 54px;
+  padding: 5px 5px 4px;
+  font-size: 10.5px;
+  line-height: 1;
   box-shadow: none;
   background: transparent;
   border-color: transparent;
@@ -453,7 +459,11 @@ textarea {
   height: 17px;
 }
 
-.nav-icon,
+.nav-icon {
+  width: 17px;
+  height: 17px;
+}
+
 .inline-icon {
   width: 18px;
   height: 18px;
