@@ -21,6 +21,8 @@ const sceneTitle = document.querySelector('#sceneTitle');
 const sceneText = document.querySelector('#sceneText');
 const briefText = document.querySelector('#briefText');
 const paymentLink = document.querySelector('#paymentLink');
+const paymentChoices = document.querySelector('#paymentChoices');
+const paymentResult = document.querySelector('#paymentResult');
 const queueText = document.querySelector('#queueText');
 const chatLog = document.querySelector('#chatLog');
 const createPayment = document.querySelector('#createPayment');
@@ -28,6 +30,8 @@ const patientMessage = document.querySelector('#patientMessage');
 
 let intakeSessionId = null;
 let intakeReadyForPayment = false;
+let paymentSessionId = null;
+let paymentPoll = null;
 
 function addChatMessage(role, text) {
   const bubble = document.createElement('div');
@@ -55,6 +59,71 @@ async function api(path, options = {}) {
   });
   if (!response.ok) throw new Error(`API ${path} failed`);
   return response.json();
+}
+
+function renderPaymentChoices(choices = []) {
+  paymentChoices.innerHTML = '';
+  if (!choices.length) {
+    paymentChoices.classList.add('hidden');
+    return;
+  }
+  choices.forEach((choice) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'secondary';
+    button.textContent = choice.label;
+    button.addEventListener('click', () => sendPaymentMessage(choice.value));
+    paymentChoices.appendChild(button);
+  });
+  paymentChoices.classList.remove('hidden');
+}
+
+function renderPaymentResult(payment) {
+  if (!payment) return;
+  const details = [
+    `<strong>${payment.method === 'qris' ? 'QRIS' : 'Virtual Account'}</strong>`,
+    `Invoice: ${payment.invoice_id}`,
+    `Amount: ${payment.currency} ${Number(payment.amount || 0).toLocaleString('id-ID')}`
+  ];
+  if (payment.va_number) details.push(`VA: ${payment.bank} ${payment.va_number}`);
+  if (payment.payment_url) details.push(`<a href="${payment.payment_url}" target="_blank" rel="noreferrer">Open payment page</a>`);
+  if (payment.qr_image_url) details.push(`<a href="${payment.qr_image_url}" target="_blank" rel="noreferrer">Open QRIS</a>`);
+  paymentResult.innerHTML = details.map((item) => `<p>${item}</p>`).join('');
+  paymentResult.classList.remove('hidden');
+  queueText.classList.remove('hidden');
+}
+
+async function sendPaymentMessage(message) {
+  if (!paymentSessionId) return;
+  const payment = await api('/payment/chat/message', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: paymentSessionId, message })
+  });
+  briefText.textContent = payment.reply;
+  renderPaymentChoices(payment.choices || []);
+  if (payment.payment) {
+    renderPaymentResult(payment.payment);
+    state.completed = Array.from(new Set([...state.completed, 'payment']));
+    setScene('DOKU payment is waiting', 'The payment agent has created the selected payment instruction and is waiting for verification.');
+    startPaymentPolling();
+  }
+  renderTimeline();
+}
+
+function startPaymentPolling() {
+  if (paymentPoll || !paymentSessionId) return;
+  paymentPoll = window.setInterval(async () => {
+    const status = await api(`/payment/chat/status/${paymentSessionId}`);
+    if (status.followup) briefText.textContent = status.followup;
+    if (status.status === 'paid') {
+      window.clearInterval(paymentPoll);
+      paymentPoll = null;
+      state.completed = Array.from(new Set([...state.completed, 'payment', 'brief']));
+      briefText.textContent = 'Payment verified. The patient can now enter the doctor chat queue.';
+      setScene('Doctor chat queue unlocked', 'The payment status is verified and the doctor briefing workflow can begin.');
+      renderTimeline();
+    }
+  }, 30000);
 }
 
 roleToggle.addEventListener('click', () => {
@@ -100,16 +169,16 @@ document.querySelector('#startConsultation').addEventListener('click', async () 
 
 createPayment.addEventListener('click', async () => {
   if (!intakeReadyForPayment) return;
-  const payment = await api('/payment/mock', { method: 'POST', body: '{}' });
-  if (payment.payment_url) {
-    state.completed.push('payment');
-    paymentLink.href = payment.payment_url;
-    paymentLink.classList.remove('hidden');
-    queueText.classList.remove('hidden');
-  }
-
-  briefText.textContent = `Payment link created with ${payment.provider}. Complete payment to enter the doctor chat queue.`;
-  setScene('DOKU payment link is ready', 'The patient is waiting for payment verification before the doctor chat opens.');
+  const payment = await api('/payment/chat/start', {
+    method: 'POST',
+    body: JSON.stringify({ intake_session_id: intakeSessionId })
+  });
+  paymentSessionId = payment.session_id;
+  paymentLink.classList.add('hidden');
+  paymentResult.classList.add('hidden');
+  briefText.textContent = payment.reply;
+  renderPaymentChoices(payment.choices || []);
+  setScene('Payment agent is active', 'The patient chooses a DOKU payment method through the chat-style payment workflow.');
   renderTimeline();
 });
 

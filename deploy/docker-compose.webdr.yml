@@ -14,6 +14,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env.openclaw
+      - .env.doku
     environment:
       NODE_ENV: production
       API_HOST: 0.0.0.0

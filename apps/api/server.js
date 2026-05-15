@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 
 const host = process.env.API_HOST || '127.0.0.1';
 const port = Number(process.env.API_PORT || 8050);
@@ -10,10 +10,29 @@ const doctorLogin = {
 };
 
 const intakeSessions = new Map();
+const paymentSessions = new Map();
 const aiConfig = {
   apiKey: process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY || '',
   baseUrl: process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1',
   model: process.env.SUMOPOD_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini'
+};
+
+const dokuConfig = {
+  mode: process.env.DOKU_MODE || 'sandbox',
+  clientId: process.env.DOKU_CLIENT_ID || '',
+  secretKey: process.env.DOKU_SECRET_KEY || '',
+  merchantId: process.env.DOKU_MERCHANT_ID || '',
+  baseUrl: process.env.DOKU_BASE_URL || 'https://api.doku.com',
+  checkoutPath: process.env.DOKU_CHECKOUT_PATH || '/checkout/v1/payment',
+  qrisPath: process.env.DOKU_QRIS_PATH || '/qris/v2/payment-code',
+  vaPath: process.env.DOKU_VA_PATH || '/bank-transfer/v1/payment-code',
+  statusPath: process.env.DOKU_STATUS_PATH || '/orders/v1/status',
+  returnUrl: process.env.DOKU_RETURN_URL || '',
+  notificationUrl: process.env.DOKU_NOTIFICATION_URL || '',
+  defaultAmount: Number(process.env.DOKU_DEFAULT_AMOUNT || 25000),
+  currency: process.env.DOKU_CURRENCY || 'IDR',
+  simulateUntilConfigured: process.env.DOKU_SIMULATE_UNTIL_CONFIGURED !== 'false',
+  followupSeconds: Number(process.env.PAYMENT_FOLLOWUP_SECONDS || 60)
 };
 
 const intakeSystemPrompt = `You are the CareClaw Initial Patient Agent.
@@ -200,6 +219,227 @@ function createIntakeSession() {
   return session;
 }
 
+function isDokuConfigured() {
+  return Boolean(dokuConfig.clientId && dokuConfig.secretKey && dokuConfig.merchantId);
+}
+
+function dokuDigest(payload) {
+  return createHash('sha256').update(JSON.stringify(payload)).digest('base64');
+}
+
+function dokuSignature({ method, path, requestId, timestamp, digest }) {
+  const component = [
+    `Client-Id:${dokuConfig.clientId}`,
+    `Request-Id:${requestId}`,
+    `Request-Timestamp:${timestamp}`,
+    `Request-Target:${path}`,
+    `Digest:${digest}`
+  ].join('\n');
+  const signature = createHmac('sha256', dokuConfig.secretKey).update(component).digest('base64');
+  return `HMACSHA256=${signature}`;
+}
+
+async function dokuPost(path, payload) {
+  const requestId = randomUUID();
+  const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const digest = dokuDigest(payload);
+  const response = await fetch(`${dokuConfig.baseUrl.replace(/\/$/, '')}${path}`, {
+    method: 'POST',
+    headers: {
+      'client-id': dokuConfig.clientId,
+      'request-id': requestId,
+      'request-timestamp': timestamp,
+      'request-target': path,
+      digest,
+      signature: dokuSignature({ method: 'POST', path, requestId, timestamp, digest }),
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body?.message || body?.error?.message || `DOKU request failed with ${response.status}`);
+  }
+  return body;
+}
+
+function createPaymentSession({ intakeSessionId, amount, method }) {
+  const invoiceId = `CARECLAW-${Date.now()}`;
+  const session = {
+    id: `payment-${randomUUID()}`,
+    intake_session_id: intakeSessionId || null,
+    invoice_id: invoiceId,
+    amount,
+    currency: dokuConfig.currency,
+    method,
+    status: 'method_required',
+    consultation_unlocked: false,
+    messages: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  paymentSessions.set(session.id, session);
+  return session;
+}
+
+function simulatedPaymentResult(req, session, method, bank) {
+  const base = {
+    session_id: session.id,
+    invoice_id: session.invoice_id,
+    provider: 'DOKU',
+    mode: 'simulation',
+    status: 'waiting_for_payment',
+    amount: session.amount,
+    currency: session.currency,
+    consultation_unlocked: false
+  };
+  if (method === 'qris') {
+    return {
+      ...base,
+      method: 'qris',
+      qr_image_url: absoluteUrl(req, `/api/payment/demo/${session.invoice_id}`),
+      instructions: 'Scan the QRIS code, complete payment, then CareClaw will verify before doctor chat opens.'
+    };
+  }
+  return {
+    ...base,
+    method: 'virtual_account',
+    bank,
+    va_number: `88${String(Date.now()).slice(-10)}`,
+    instructions: `Pay to the ${bank} virtual account number, then CareClaw will verify before doctor chat opens.`
+  };
+}
+
+async function createDokuPayment(req, session, method, bank) {
+  if (!isDokuConfigured() && dokuConfig.simulateUntilConfigured) {
+    return simulatedPaymentResult(req, session, method, bank);
+  }
+  if (!isDokuConfigured()) {
+    throw new Error('DOKU credentials are not configured');
+  }
+
+  const payload = {
+    order: {
+      invoice_number: session.invoice_id,
+      amount: session.amount,
+      currency: session.currency
+    },
+    payment: {
+      payment_method: method === 'qris' ? 'QRIS' : 'VIRTUAL_ACCOUNT',
+      payment_due_date: 60
+    },
+    customer: {
+      name: 'CareClaw Patient'
+    }
+  };
+
+  if (dokuConfig.returnUrl) payload.callback_url = dokuConfig.returnUrl;
+  if (dokuConfig.notificationUrl) payload.notification_url = dokuConfig.notificationUrl;
+
+  if (method === 'virtual_account') {
+    payload.payment.bank = bank;
+  }
+
+  const path = method === 'qris' ? dokuConfig.qrisPath : dokuConfig.vaPath;
+  const result = await dokuPost(path, payload);
+  return {
+    session_id: session.id,
+    invoice_id: session.invoice_id,
+    provider: 'DOKU',
+    mode: dokuConfig.mode,
+    method,
+    bank,
+    status: 'waiting_for_payment',
+    amount: session.amount,
+    currency: session.currency,
+    consultation_unlocked: false,
+    payment_url: result?.response?.payment?.url || result?.payment?.url || result?.url || null,
+    qr_image_url: result?.response?.qr?.image_url || result?.qr_image_url || null,
+    va_number: result?.response?.virtual_account_info?.virtual_account_number || result?.va_number || null,
+    raw_status: result?.status || result?.response?.status || null
+  };
+}
+
+function paymentAgentReply(session) {
+  if (session.status === 'method_required') {
+    return {
+      reply: `Biaya konsultasi adalah ${session.currency} ${session.amount.toLocaleString('id-ID')}. Mau bayar dengan QRIS atau Virtual Account?`,
+      choices: [
+        { label: 'QRIS', value: 'qris' },
+        { label: 'Virtual Account', value: 'virtual_account' }
+      ]
+    };
+  }
+  if (session.status === 'bank_required') {
+    return {
+      reply: 'Pilih bank virtual account yang ingin digunakan.',
+      choices: ['BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA'].map((bank) => ({ label: bank, value: bank }))
+    };
+  }
+  return {
+    reply: 'Pembayaran sedang menunggu verifikasi. Setelah terkonfirmasi, chat dokter akan otomatis dibuka.',
+    choices: []
+  };
+}
+
+async function handlePaymentChat(req, session, message) {
+  const normalized = message.toLowerCase();
+  if (session.status === 'method_required') {
+    if (normalized.includes('qris')) {
+      session.method = 'qris';
+      const result = await createDokuPayment(req, session, 'qris');
+      Object.assign(session, {
+        status: 'waiting_for_payment',
+        result,
+        updated_at: new Date().toISOString()
+      });
+      return {
+        reply: 'QRIS sudah dibuat. Silakan scan QR dan selesaikan pembayaran.',
+        payment: result,
+        choices: []
+      };
+    }
+    if (normalized.includes('virtual') || normalized.includes('va') || normalized.includes('bank')) {
+      Object.assign(session, {
+        method: 'virtual_account',
+        status: 'bank_required',
+        updated_at: new Date().toISOString()
+      });
+      return paymentAgentReply(session);
+    }
+  }
+
+  if (session.status === 'bank_required') {
+    const bank = ['BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA'].find((item) => normalized.includes(item.toLowerCase()));
+    if (!bank) {
+      return paymentAgentReply(session);
+    }
+    const result = await createDokuPayment(req, session, 'virtual_account', bank);
+    Object.assign(session, {
+      bank,
+      status: 'waiting_for_payment',
+      result,
+      updated_at: new Date().toISOString()
+    });
+    return {
+      reply: `Virtual Account ${bank} sudah dibuat. Silakan bayar sesuai nominal yang tertera.`,
+      payment: result,
+      choices: []
+    };
+  }
+
+  return paymentAgentReply(session);
+}
+
+function maybePaymentFollowup(session) {
+  if (session.status !== 'waiting_for_payment') return null;
+  const lastFollowup = session.last_followup_at ? Date.parse(session.last_followup_at) : Date.parse(session.updated_at);
+  const due = Date.now() - lastFollowup >= dokuConfig.followupSeconds * 1000;
+  if (!due) return null;
+  session.last_followup_at = new Date().toISOString();
+  return 'Pembayaran belum terverifikasi. Jika sudah membayar, sistem akan membuka antrean chat dokter setelah status DOKU diterima.';
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -311,6 +551,88 @@ const server = http.createServer(async (req, res) => {
         message: body.message || 'Patient started consultation.',
         next_event: 'consultation.symptoms.extract.requested'
       });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/payment/chat/start') {
+      const body = await readBody(req);
+      const session = createPaymentSession({
+        intakeSessionId: body.intake_session_id,
+        amount: Number(body.amount || dokuConfig.defaultAmount),
+        method: body.method || null
+      });
+      const agent = paymentAgentReply(session);
+      session.messages.push({ role: 'agent', content: agent.reply });
+      sendJson(res, 200, {
+        session_id: session.id,
+        invoice_id: session.invoice_id,
+        status: session.status,
+        amount: session.amount,
+        currency: session.currency,
+        ...agent
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/payment/chat/message') {
+      const body = await readBody(req);
+      const sessionId = String(body.session_id || '');
+      const message = String(body.message || '').trim();
+      const session = paymentSessions.get(sessionId);
+      if (!session) {
+        sendJson(res, 404, { error: 'Payment session not found' });
+        return;
+      }
+      if (!message) {
+        sendJson(res, 400, { error: 'Message is required' });
+        return;
+      }
+      session.messages.push({ role: 'patient', content: message });
+      const agent = await handlePaymentChat(req, session, message);
+      session.messages.push({ role: 'agent', content: agent.reply });
+      sendJson(res, 200, {
+        session_id: session.id,
+        invoice_id: session.invoice_id,
+        status: session.status,
+        ...agent
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/payment/chat/status/')) {
+      const sessionId = url.pathname.split('/').pop() || '';
+      const session = paymentSessions.get(sessionId);
+      if (!session) {
+        sendJson(res, 404, { error: 'Payment session not found' });
+        return;
+      }
+      const followup = maybePaymentFollowup(session);
+      sendJson(res, 200, {
+        session_id: session.id,
+        invoice_id: session.invoice_id,
+        status: session.status,
+        method: session.method,
+        bank: session.bank,
+        payment: session.result || null,
+        followup,
+        consultation_unlocked: session.consultation_unlocked
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/payment/doku/webhook') {
+      const body = await readBody(req);
+      const invoiceId = body?.order?.invoice_number || body?.invoice_number || body?.invoice_id;
+      const paymentStatus = String(body?.transaction?.status || body?.status || '').toLowerCase();
+      const session = Array.from(paymentSessions.values()).find((item) => item.invoice_id === invoiceId);
+      if (session && ['success', 'settlement', 'paid', 'capture'].includes(paymentStatus)) {
+        Object.assign(session, {
+          status: 'paid',
+          consultation_unlocked: true,
+          updated_at: new Date().toISOString()
+        });
+      }
+      sendJson(res, 200, { received: true });
       return;
     }
 

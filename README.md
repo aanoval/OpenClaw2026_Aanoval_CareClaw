@@ -83,11 +83,11 @@ CareClaw extends OpenClaw into a healthcare-specific orchestrated multi-agent sy
 
 ## Payment Layer
 
-CareClaw uses DOKU MCP Server for consultation payment workflows.
+CareClaw uses a DOKU-compatible payment agent for consultation payment workflows.
 
-The Billing and Payment Agent can generate payment links, QRIS or Virtual Account instructions, check transaction status, and unlock doctor access after successful payment verification.
+The Billing and Payment Agent can chat with the patient, offer QRIS or Virtual Account options, create payment instructions, follow up while payment is pending, and unlock doctor access after successful payment verification.
 
-The initial hackathon demo should use DOKU Checkout Payment for the fastest reproducible payment flow.
+Production DOKU credentials and endpoint overrides must be configured outside this public repository.
 
 ## Key Philosophy
 
@@ -255,11 +255,12 @@ The `deploy/docker-compose.webdr.yml` file runs the public patient PWA and API b
 
 ```bash
 cd deploy
+cp doku.env.example .env.doku
 docker-compose -f docker-compose.webdr.yml up -d --build careclaw-web careclaw-api
 docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-agents-check
 ```
 
-The patient flow creates a DOKU-compatible demo payment link and moves the patient into a waiting-for-doctor-chat state. Real DOKU credentials should be configured outside this public repository.
+The patient flow creates DOKU-compatible QRIS or Virtual Account instructions and moves the patient into a waiting-for-doctor-chat state. Real DOKU credentials should be configured only in `.env.doku`.
 
 The same compose file can run an OpenClaw gateway with a CareClaw workspace:
 
@@ -294,6 +295,9 @@ GET  /health
 POST /login
 GET  /consultation/demo
 POST /consultation/start
+POST /payment/chat/start
+POST /payment/chat/message
+GET  /payment/chat/status/:sessionId
 POST /payment/mock
 POST /doctor/approve
 ```
