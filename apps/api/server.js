@@ -1,5 +1,7 @@
 import http from 'node:http';
-import { createHash, createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 const host = process.env.API_HOST || '127.0.0.1';
 const port = Number(process.env.API_PORT || 8050);
@@ -13,6 +15,8 @@ const intakeSessions = new Map();
 const paymentSessions = new Map();
 const consultationSessions = new Map();
 const doctorTokens = new Set();
+const patientTokens = new Map();
+const storeFile = process.env.CARECLAW_STORE_FILE || path.join(process.cwd(), '.data', 'careclaw-store.json');
 const aiConfig = {
   apiKey: process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY || '',
   baseUrl: process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1',
@@ -101,6 +105,128 @@ const demoConsultation = {
   }
 };
 
+function emptyStore() {
+  return {
+    users: [],
+    guests: {},
+    history: {
+      intake: [],
+      payments: [],
+      consultations: []
+    }
+  };
+}
+
+function readStore() {
+  try {
+    if (!existsSync(storeFile)) return emptyStore();
+    return { ...emptyStore(), ...JSON.parse(readFileSync(storeFile, 'utf8')) };
+  } catch {
+    return emptyStore();
+  }
+}
+
+function writeStore(store) {
+  mkdirSync(path.dirname(storeFile), { recursive: true });
+  const tmp = `${storeFile}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify(store, null, 2));
+  renameSync(tmp, storeFile);
+}
+
+function mutateStore(mutator) {
+  const store = readStore();
+  const result = mutator(store);
+  writeStore(store);
+  return result;
+}
+
+function publicUser(user) {
+  return user ? { id: user.id, email: user.email, created_at: user.created_at } : null;
+}
+
+function hashPassword(password, salt = randomUUID()) {
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return { salt, hash };
+}
+
+function verifyPassword(password, user) {
+  const attempt = scryptSync(password, user.password_salt, 64);
+  const saved = Buffer.from(user.password_hash, 'hex');
+  return saved.length === attempt.length && timingSafeEqual(saved, attempt);
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function validatePatientEmail(email) {
+  const normalized = normalizeEmail(email);
+  const match = normalized.match(/^([a-z0-9]{5,})@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com|icloud\.com)$/);
+  return match ? normalized : null;
+}
+
+function getPatientToken(req) {
+  const header = req.headers.authorization || '';
+  const token = Array.isArray(header) ? header[0] : header;
+  const value = token.startsWith('Bearer ') ? token.slice(7) : '';
+  return patientTokens.get(value) || null;
+}
+
+function requirePatient(req, res) {
+  const userId = getPatientToken(req);
+  if (!userId) {
+    sendJson(res, 401, { error: 'Login required' });
+    return null;
+  }
+  return userId;
+}
+
+function linkGuestRecord(store, guestId, type, id) {
+  if (!guestId || !id) return;
+  const guest = store.guests[guestId] || { intake: [], payments: [], consultations: [], migrated_to: null };
+  guest[type] = Array.from(new Set([...(guest[type] || []), id]));
+  store.guests[guestId] = guest;
+}
+
+function ownerFromRequest(req, body = {}) {
+  return {
+    user_id: getPatientToken(req),
+    guest_id: String(body.guest_id || '').trim() || null
+  };
+}
+
+function recordHistory(type, item) {
+  mutateStore((store) => {
+    const list = store.history[type];
+    const index = list.findIndex((entry) => entry.id === item.id);
+    if (index >= 0) list[index] = { ...list[index], ...item, updated_at: new Date().toISOString() };
+    else list.push({ ...item, created_at: item.created_at || new Date().toISOString(), updated_at: new Date().toISOString() });
+    if (item.guest_id) linkGuestRecord(store, item.guest_id, type, item.id);
+  });
+}
+
+function migrateGuestToUser(store, guestId, userId) {
+  const guest = store.guests[guestId];
+  if (!guest || guest.migrated_to === userId) return;
+  for (const type of ['intake', 'payments', 'consultations']) {
+    const ids = new Set(guest[type] || []);
+    for (const item of store.history[type]) {
+      if (ids.has(item.id)) item.user_id = userId;
+    }
+  }
+  guest.migrated_to = userId;
+  guest.migrated_at = new Date().toISOString();
+}
+
+function userHistory(userId) {
+  const store = readStore();
+  return {
+    intake: store.history.intake.filter((item) => item.user_id === userId),
+    payments: store.history.payments.filter((item) => item.user_id === userId),
+    consultations: store.history.consultations.filter((item) => item.user_id === userId)
+  };
+}
+
 function requireDoctor(req, res) {
   const header = req.headers.authorization || '';
   const token = Array.isArray(header) ? header[0] : header;
@@ -138,6 +264,8 @@ function ensureConsultationFromPayment(paymentSession) {
   const patientMessages = intakeSession?.messages?.filter((item) => item.role === 'user').map((item) => item.content) || [];
   const consultation = {
     id,
+    user_id: paymentSession.user_id || intakeSession?.user_id || null,
+    guest_id: paymentSession.guest_id || intakeSession?.guest_id || null,
     payment_session_id: paymentSession.id,
     intake_session_id: paymentSession.intake_session_id,
     status: 'waiting_doctor',
@@ -166,6 +294,17 @@ function ensureConsultationFromPayment(paymentSession) {
   };
   paymentSession.consultation_id = id;
   consultationSessions.set(id, consultation);
+  recordHistory('consultations', {
+    id,
+    user_id: consultation.user_id,
+    guest_id: consultation.guest_id,
+    payment_session_id: paymentSession.id,
+    intake_session_id: paymentSession.intake_session_id,
+    status: consultation.status,
+    title: consultation.patient_summary || 'Konsultasi dokter',
+    amount: paymentSession.amount,
+    currency: paymentSession.currency
+  });
   return consultation;
 }
 
@@ -304,16 +443,26 @@ async function runIntakeAi(session, message) {
   }
 }
 
-function createIntakeSession() {
+function createIntakeSession(owner = {}) {
   const id = `intake-${randomUUID()}`;
   const session = {
     id,
+    user_id: owner.user_id || null,
+    guest_id: owner.guest_id || null,
     messages: [],
     ready_for_payment: false,
     collected: {},
     created_at: new Date().toISOString()
   };
   intakeSessions.set(id, session);
+  recordHistory('intake', {
+    id,
+    user_id: session.user_id,
+    guest_id: session.guest_id,
+    status: 'started',
+    message_count: 0,
+    title: 'Konsultasi baru'
+  });
   return session;
 }
 
@@ -472,11 +621,13 @@ async function createDirectVaPayment(session, bank) {
   };
 }
 
-function createPaymentSession({ intakeSessionId, amount, method }) {
+function createPaymentSession({ intakeSessionId, amount, method, owner = {} }) {
   const invoiceId = `CARECLAW-${Date.now()}`;
   const intakeSession = intakeSessions.get(intakeSessionId || '');
   const session = {
     id: `payment-${randomUUID()}`,
+    user_id: owner.user_id || intakeSession?.user_id || null,
+    guest_id: owner.guest_id || intakeSession?.guest_id || null,
     intake_session_id: intakeSessionId || null,
     intake_ready: Boolean(intakeSession?.ready_for_payment),
     intake_context: intakeSession?.collected || {},
@@ -495,6 +646,16 @@ function createPaymentSession({ intakeSessionId, amount, method }) {
     updated_at: new Date().toISOString()
   };
   paymentSessions.set(session.id, session);
+  recordHistory('payments', {
+    id: session.id,
+    user_id: session.user_id,
+    guest_id: session.guest_id,
+    invoice_id: session.invoice_id,
+    status: session.status,
+    amount: session.amount,
+    currency: session.currency,
+    method: session.method || null
+  });
   return session;
 }
 
@@ -707,14 +868,91 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/auth/register') {
+      const body = await readBody(req);
+      const email = validatePatientEmail(body.email);
+      const password = String(body.password || '');
+      const confirmPassword = String(body.confirm_password || body.confirmPassword || '');
+      if (!email) {
+        sendJson(res, 400, { error: 'Use a common email domain and at least 5 letters or numbers before @.' });
+        return;
+      }
+      if (password.length < 8 || password !== confirmPassword) {
+        sendJson(res, 400, { error: 'Password confirmation does not match or is too short.' });
+        return;
+      }
+      const result = mutateStore((store) => {
+        if (store.users.some((user) => user.email === email)) return { error: 'Email already registered' };
+        const passwordHash = hashPassword(password);
+        const user = {
+          id: `user-${randomUUID()}`,
+          email,
+          password_salt: passwordHash.salt,
+          password_hash: passwordHash.hash,
+          created_at: new Date().toISOString()
+        };
+        store.users.push(user);
+        if (body.guest_id) migrateGuestToUser(store, String(body.guest_id), user.id);
+        return { user };
+      });
+      if (result.error) {
+        sendJson(res, 409, { error: result.error });
+        return;
+      }
+      const token = `patient-${randomUUID()}`;
+      patientTokens.set(token, result.user.id);
+      sendJson(res, 200, { token, user: publicUser(result.user), history: userHistory(result.user.id) });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/auth/login') {
+      const body = await readBody(req);
+      const email = normalizeEmail(body.email);
+      const password = String(body.password || '');
+      const store = readStore();
+      const user = store.users.find((item) => item.email === email);
+      if (!user || !verifyPassword(password, user)) {
+        sendJson(res, 401, { error: 'Email or password is incorrect' });
+        return;
+      }
+      const token = `patient-${randomUUID()}`;
+      patientTokens.set(token, user.id);
+      sendJson(res, 200, { token, user: publicUser(user), history: userHistory(user.id) });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/auth/me') {
+      const userId = requirePatient(req, res);
+      if (!userId) return;
+      const user = readStore().users.find((item) => item.id === userId);
+      sendJson(res, 200, { user: publicUser(user), history: userHistory(userId) });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/history') {
+      const userId = requirePatient(req, res);
+      if (!userId) return;
+      sendJson(res, 200, userHistory(userId));
+      return;
+    }
+
     if (req.method === 'GET' && url.pathname === '/consultation/demo') {
       sendJson(res, 200, demoConsultation);
       return;
     }
 
     if (req.method === 'POST' && url.pathname === '/intake/start') {
-      const session = createIntakeSession();
-      const reply = 'Halo, saya asisten intake CareClaw. Ceritakan keluhan utama Anda, sejak kapan mulai, dan gejala yang paling mengganggu.';
+      const body = await readBody(req);
+      const owner = ownerFromRequest(req, body);
+      if (!owner.user_id && owner.guest_id) {
+        const guest = readStore().guests[owner.guest_id];
+        if (guest?.intake?.length) {
+          sendJson(res, 403, { error: 'Login atau daftar dulu untuk mulai konsultasi baru.' });
+          return;
+        }
+      }
+      const session = createIntakeSession(owner);
+      const reply = 'Halo, ceritakan keluhan utama Anda. Saya akan tanya beberapa hal penting.';
       session.messages.push({ role: 'assistant', content: reply });
       sendJson(res, 200, {
         session_id: session.id,
@@ -744,6 +982,14 @@ const server = http.createServer(async (req, res) => {
       session.ready_for_payment = Boolean(result.ready_for_payment);
       session.collected = result.collected || session.collected;
       session.messages.push({ role: 'assistant', content: result.reply });
+      recordHistory('intake', {
+        id: session.id,
+        user_id: session.user_id,
+        guest_id: session.guest_id,
+        status: session.ready_for_payment ? 'ready_for_payment' : 'active',
+        title: session.collected?.chief_complaint || message.slice(0, 80),
+        message_count: session.messages.length
+      });
       sendJson(res, 200, {
         session_id: session.id,
         reply: result.reply,
@@ -782,7 +1028,8 @@ const server = http.createServer(async (req, res) => {
       const session = createPaymentSession({
         intakeSessionId: body.intake_session_id,
         amount: Number(body.amount || dokuConfig.defaultAmount),
-        method: body.method || null
+        method: body.method || null,
+        owner: ownerFromRequest(req, body)
       });
       const agent = paymentAgentReply(session);
       session.messages.push({ role: 'agent', content: agent.reply });
@@ -813,6 +1060,17 @@ const server = http.createServer(async (req, res) => {
       session.messages.push({ role: 'patient', content: message });
       const agent = await handlePaymentChat(req, session, message);
       session.messages.push({ role: 'agent', content: agent.reply });
+      recordHistory('payments', {
+        id: session.id,
+        user_id: session.user_id,
+        guest_id: session.guest_id,
+        invoice_id: session.invoice_id,
+        status: session.status,
+        method: session.method,
+        bank: session.bank || null,
+        amount: session.amount,
+        currency: session.currency
+      });
       sendJson(res, 200, {
         session_id: session.id,
         invoice_id: session.invoice_id,
@@ -850,7 +1108,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const invoiceId = body?.order?.invoice_number || body?.invoice_number || body?.invoice_id;
       const paymentStatus = String(body?.transaction?.status || body?.status || '').toLowerCase();
-      const session = Array.from(paymentSessions.values()).find((item) => item.invoice_id === invoiceId);
+      const session = Array.from(paymentSessions.values()).find((item) => item.invoice_id === invoiceId || item.result?.invoice_id === invoiceId);
       if (session && ['success', 'settlement', 'paid', 'capture'].includes(paymentStatus)) {
         Object.assign(session, {
           status: 'paid',
@@ -858,6 +1116,17 @@ const server = http.createServer(async (req, res) => {
           updated_at: new Date().toISOString()
         });
         ensureConsultationFromPayment(session);
+        recordHistory('payments', {
+          id: session.id,
+          user_id: session.user_id,
+          guest_id: session.guest_id,
+          invoice_id: session.invoice_id,
+          status: session.status,
+          method: session.method,
+          bank: session.bank || null,
+          amount: session.amount,
+          currency: session.currency
+        });
       }
       sendJson(res, 200, { received: true });
       return;
@@ -901,6 +1170,14 @@ const server = http.createServer(async (req, res) => {
         at: consultation.updated_at
       });
       consultation.assistant = createDoctorAssist(consultation);
+      recordHistory('consultations', {
+        id: consultation.id,
+        user_id: consultation.user_id,
+        guest_id: consultation.guest_id,
+        status: consultation.status,
+        title: consultation.patient_summary || 'Chat dokter',
+        message_count: consultation.messages.length
+      });
       sendJson(res, 200, serializeConsultation(consultation));
       return;
     }
@@ -923,6 +1200,14 @@ const server = http.createServer(async (req, res) => {
       consultation.messages.push({ role: 'doctor', content: message, at: new Date().toISOString() });
       consultation.assistant = createDoctorAssist(consultation, message);
       consultation.updated_at = new Date().toISOString();
+      recordHistory('consultations', {
+        id: consultation.id,
+        user_id: consultation.user_id,
+        guest_id: consultation.guest_id,
+        status: consultation.status,
+        title: consultation.patient_summary || 'Chat dokter',
+        message_count: consultation.messages.length
+      });
       sendJson(res, 200, serializeConsultation(consultation));
       return;
     }
@@ -956,6 +1241,14 @@ const server = http.createServer(async (req, res) => {
         content: 'Final review package is ready for doctor approval and patient delivery.',
         at: consultation.updated_at
       });
+      recordHistory('consultations', {
+        id: consultation.id,
+        user_id: consultation.user_id,
+        guest_id: consultation.guest_id,
+        status: consultation.status,
+        title: consultation.patient_summary || 'Hasil konsultasi',
+        message_count: consultation.messages.length
+      });
       sendJson(res, 200, serializeConsultation(consultation));
       return;
     }
@@ -987,6 +1280,14 @@ const server = http.createServer(async (req, res) => {
       consultation.messages.push({ role: 'patient', content: message, at: new Date().toISOString() });
       consultation.assistant = createDoctorAssist(consultation, message);
       consultation.updated_at = new Date().toISOString();
+      recordHistory('consultations', {
+        id: consultation.id,
+        user_id: consultation.user_id,
+        guest_id: consultation.guest_id,
+        status: consultation.status,
+        title: consultation.patient_summary || 'Chat dokter',
+        message_count: consultation.messages.length
+      });
       sendJson(res, 200, serializeConsultation(consultation));
       return;
     }
