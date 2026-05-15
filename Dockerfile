@@ -14,4 +14,4 @@ COPY schemas ./schemas
 COPY workflows ./workflows
 COPY skills ./skills
 COPY tools ./tools
-CMD ["npm", "run", "demo:agents"]
+CMD ["sh", "-c", "if [ -n \"$AGENT_NAME\" ]; then npm run demo:container-agent; else npm run demo:agents; fi"]
