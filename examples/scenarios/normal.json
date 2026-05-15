@@ -1,0 +1,5 @@
+{
+  "name": "normal",
+  "message": "I have had fever and cough for three days.",
+  "expected_final_status": "final_delivery_sent"
+}

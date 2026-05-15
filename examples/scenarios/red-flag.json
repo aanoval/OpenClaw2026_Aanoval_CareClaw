@@ -1,0 +1,5 @@
+{
+  "name": "red-flag",
+  "message": "I have fever, cough, chest pain, and shortness of breath.",
+  "expected_route": "urgent_doctor_review.required"
+}

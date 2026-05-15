@@ -1,0 +1,5 @@
+{
+  "name": "payment-gated",
+  "message": "I need to consult a doctor about fever.",
+  "expected_payment_gate": "payment.requested"
+}
