@@ -52,11 +52,11 @@ EOF
 
 case "${1:-gateway}" in
   gateway)
-    exec openclaw gateway 0.0.0.0 --port "${OPENCLAW_GATEWAY_PORT:-18789}" --verbose
+    exec openclaw gateway run --bind lan --auth none --port "${OPENCLAW_GATEWAY_PORT:-18789}" --allow-unconfigured --verbose
     ;;
   agent-check)
     shift || true
-    exec openclaw agent --message "${OPENCLAW_CHECK_MESSAGE:-CareClaw health check: reply with one short sentence confirming the healthcare agent workspace is loaded.}" --thinking low "$@"
+    exec openclaw agent --local --message "${OPENCLAW_CHECK_MESSAGE:-CareClaw health check: reply with one short sentence confirming the healthcare agent workspace is loaded.}" --thinking low "$@"
     ;;
   *)
     exec openclaw "$@"
