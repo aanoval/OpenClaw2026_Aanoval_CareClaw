@@ -19,8 +19,11 @@ services:
       NODE_ENV: production
       API_HOST: 0.0.0.0
       API_PORT: 8050
+      CARECLAW_STORE_FILE: /data/careclaw-store.json
       DOCTOR_USERNAME: doctor
       DOCTOR_PASSWORD: careclaw2026
+    volumes:
+      - careclaw-data:/data
     ports:
       - "127.0.0.1:8050:8050"
 
@@ -56,3 +59,6 @@ services:
       OPENCLAW_MODEL_PROVIDER: sumopod
       OPENCLAW_MODEL_ID: gpt-4o-mini
     command: agent-check
+
+volumes:
+  careclaw-data:
