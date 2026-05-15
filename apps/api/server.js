@@ -11,6 +11,8 @@ const doctorLogin = {
 
 const intakeSessions = new Map();
 const paymentSessions = new Map();
+const consultationSessions = new Map();
+const doctorTokens = new Set();
 const aiConfig = {
   apiKey: process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY || '',
   baseUrl: process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1',
@@ -98,6 +100,90 @@ const demoConsultation = {
     prescription: 'No autonomous prescription. Doctor approval required.'
   }
 };
+
+function requireDoctor(req, res) {
+  const header = req.headers.authorization || '';
+  const token = Array.isArray(header) ? header[0] : header;
+  const value = token.startsWith('Bearer ') ? token.slice(7) : '';
+  if (!doctorTokens.has(value)) {
+    sendJson(res, 401, { error: 'Doctor authentication required' });
+    return false;
+  }
+  return true;
+}
+
+function createDoctorAssist(consultation, latestMessage = '') {
+  const symptomText = consultation.intake_context?.chief_complaint || consultation.patient_summary || 'the patient concern';
+  const suggestions = [
+    'Clarify current severity and functional limitation.',
+    'Confirm allergy history, current medication, and relevant chronic conditions.',
+    'Check red flags before giving final home-care instructions.'
+  ];
+  if (/demam|fever|batuk|cough/i.test(`${symptomText} ${latestMessage}`)) {
+    suggestions.unshift('Ask about temperature, breathing difficulty, chest pain, hydration, and high-risk conditions.');
+  }
+  return {
+    suggestions: suggestions.slice(0, 3),
+    draft_reply: 'Terima kasih, saya sudah membaca ringkasan awalnya. Saya akan konfirmasi beberapa hal penting sebelum memberi instruksi final.',
+    safety_note: 'Doctor remains the final decision maker. AI suggestions are not sent to the patient automatically.'
+  };
+}
+
+function ensureConsultationFromPayment(paymentSession) {
+  if (!paymentSession.consultation_unlocked) return null;
+  if (paymentSession.consultation_id) return consultationSessions.get(paymentSession.consultation_id) || null;
+
+  const id = `consultation-${randomUUID()}`;
+  const intakeSession = intakeSessions.get(paymentSession.intake_session_id || '');
+  const patientMessages = intakeSession?.messages?.filter((item) => item.role === 'user').map((item) => item.content) || [];
+  const consultation = {
+    id,
+    payment_session_id: paymentSession.id,
+    intake_session_id: paymentSession.intake_session_id,
+    status: 'waiting_doctor',
+    patient_name: 'CareClaw Patient',
+    patient_summary: patientMessages.slice(-4).join(' '),
+    intake_context: paymentSession.intake_context || intakeSession?.collected || {},
+    payment: {
+      invoice_id: paymentSession.invoice_id,
+      status: paymentSession.status,
+      method: paymentSession.method,
+      bank: paymentSession.bank,
+      amount: paymentSession.amount,
+      currency: paymentSession.currency
+    },
+    messages: [
+      {
+        role: 'system',
+        content: 'Payment verified. Patient is waiting for doctor chat.',
+        at: new Date().toISOString()
+      }
+    ],
+    assistant: createDoctorAssist({ intake_context: paymentSession.intake_context || {} }),
+    final_review: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  paymentSession.consultation_id = id;
+  consultationSessions.set(id, consultation);
+  return consultation;
+}
+
+function serializeConsultation(consultation) {
+  return {
+    id: consultation.id,
+    status: consultation.status,
+    patient_name: consultation.patient_name,
+    patient_summary: consultation.patient_summary,
+    intake_context: consultation.intake_context,
+    payment: consultation.payment,
+    messages: consultation.messages.filter((item) => item.role !== 'system'),
+    assistant: consultation.assistant,
+    final_review: consultation.final_review,
+    created_at: consultation.created_at,
+    updated_at: consultation.updated_at
+  };
+}
 
 function absoluteUrl(req, path) {
   const forwardedProto = req.headers['x-forwarded-proto'];
@@ -611,9 +697,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/login') {
       const body = await readBody(req);
       const authenticated = body.username === doctorLogin.username && body.password === doctorLogin.password;
+      const token = authenticated ? `doctor-${randomUUID()}` : null;
+      if (token) doctorTokens.add(token);
       sendJson(res, authenticated ? 200 : 401, {
         authenticated,
-        token: authenticated ? `demo-doctor-${randomUUID()}` : null,
+        token,
         role: authenticated ? 'doctor' : null
       });
       return;
@@ -742,6 +830,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const followup = maybePaymentFollowup(session);
+      const consultation = ensureConsultationFromPayment(session);
       sendJson(res, 200, {
         session_id: session.id,
         invoice_id: session.invoice_id,
@@ -751,7 +840,8 @@ const server = http.createServer(async (req, res) => {
         payment: session.result || null,
         followup,
         agent_events: session.agent_events,
-        consultation_unlocked: session.consultation_unlocked
+        consultation_unlocked: session.consultation_unlocked,
+        consultation_id: consultation?.id || null
       });
       return;
     }
@@ -767,8 +857,137 @@ const server = http.createServer(async (req, res) => {
           consultation_unlocked: true,
           updated_at: new Date().toISOString()
         });
+        ensureConsultationFromPayment(session);
       }
       sendJson(res, 200, { received: true });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/doctor/queue') {
+      if (!requireDoctor(req, res)) return;
+      const consultations = Array.from(consultationSessions.values())
+        .filter((item) => ['waiting_doctor', 'active', 'final_ready'].includes(item.status))
+        .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
+        .map(serializeConsultation);
+      sendJson(res, 200, { consultations });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/doctor/consultations/')) {
+      if (!requireDoctor(req, res)) return;
+      const id = url.pathname.split('/').pop() || '';
+      const consultation = consultationSessions.get(id);
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      sendJson(res, 200, serializeConsultation(consultation));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname.match(/^\/doctor\/consultations\/[^/]+\/claim$/)) {
+      if (!requireDoctor(req, res)) return;
+      const id = url.pathname.split('/')[3] || '';
+      const consultation = consultationSessions.get(id);
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      consultation.status = 'active';
+      consultation.updated_at = new Date().toISOString();
+      consultation.messages.push({
+        role: 'doctor',
+        content: 'Halo, saya dokter yang akan meninjau konsultasi Anda. Saya sudah membaca ringkasan awalnya.',
+        at: consultation.updated_at
+      });
+      consultation.assistant = createDoctorAssist(consultation);
+      sendJson(res, 200, serializeConsultation(consultation));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname.match(/^\/doctor\/consultations\/[^/]+\/message$/)) {
+      if (!requireDoctor(req, res)) return;
+      const id = url.pathname.split('/')[3] || '';
+      const consultation = consultationSessions.get(id);
+      const body = await readBody(req);
+      const message = String(body.message || '').trim();
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      if (!message) {
+        sendJson(res, 400, { error: 'Message is required' });
+        return;
+      }
+      consultation.status = 'active';
+      consultation.messages.push({ role: 'doctor', content: message, at: new Date().toISOString() });
+      consultation.assistant = createDoctorAssist(consultation, message);
+      consultation.updated_at = new Date().toISOString();
+      sendJson(res, 200, serializeConsultation(consultation));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname.match(/^\/doctor\/consultations\/[^/]+\/end$/)) {
+      if (!requireDoctor(req, res)) return;
+      const id = url.pathname.split('/')[3] || '';
+      const consultation = consultationSessions.get(id);
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      consultation.status = 'final_ready';
+      consultation.final_review = {
+        soap: {
+          subjective: consultation.patient_summary || 'Patient completed intake and doctor chat.',
+          objective: 'Remote consultation. No physical examination recorded in this demo workflow.',
+          assessment: 'Doctor review completed. Final clinical assessment remains doctor-authored.',
+          plan: 'Send approved education, warning signs, and follow-up instructions to the patient.'
+        },
+        patient_education: [
+          'Ikuti instruksi dokter yang dikirim di chat.',
+          'Segera cari bantuan medis bila muncul sesak, nyeri dada, penurunan kesadaran, atau keluhan memburuk.',
+          'Kontrol ulang bila keluhan belum membaik sesuai arahan dokter.'
+        ],
+        delivery_ready: true
+      };
+      consultation.updated_at = new Date().toISOString();
+      consultation.messages.push({
+        role: 'agent',
+        content: 'Final review package is ready for doctor approval and patient delivery.',
+        at: consultation.updated_at
+      });
+      sendJson(res, 200, serializeConsultation(consultation));
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/patient/consultations/')) {
+      const id = url.pathname.split('/').pop() || '';
+      const consultation = consultationSessions.get(id);
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      sendJson(res, 200, serializeConsultation(consultation));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname.match(/^\/patient\/consultations\/[^/]+\/message$/)) {
+      const id = url.pathname.split('/')[3] || '';
+      const consultation = consultationSessions.get(id);
+      const body = await readBody(req);
+      const message = String(body.message || '').trim();
+      if (!consultation) {
+        sendJson(res, 404, { error: 'Consultation not found' });
+        return;
+      }
+      if (!message) {
+        sendJson(res, 400, { error: 'Message is required' });
+        return;
+      }
+      consultation.messages.push({ role: 'patient', content: message, at: new Date().toISOString() });
+      consultation.assistant = createDoctorAssist(consultation, message);
+      consultation.updated_at = new Date().toISOString();
+      sendJson(res, 200, serializeConsultation(consultation));
       return;
     }
 
