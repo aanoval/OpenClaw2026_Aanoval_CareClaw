@@ -4,3 +4,21 @@ services:
     environment:
       NODE_ENV: production
     command: npm run demo:agents
+  careclaw-orchestrator:
+    build: .
+    profiles: ["agents"]
+    environment:
+      NODE_ENV: production
+      AGENT_NAME: orchestrator
+  careclaw-intake:
+    build: .
+    profiles: ["agents"]
+    environment:
+      NODE_ENV: production
+      AGENT_NAME: intake
+  careclaw-payment:
+    build: .
+    profiles: ["agents"]
+    environment:
+      NODE_ENV: production
+      AGENT_NAME: payment
