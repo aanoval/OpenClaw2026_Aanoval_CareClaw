@@ -39,10 +39,6 @@ cat > "$OPENCLAW_HOME_DIR/openclaw.json" <<EOF
       }
     }
   },
-  "agent": {
-    "model": "${OPENCLAW_MODEL_REF}",
-    "skipBootstrap": true
-  },
   "agents": {
     "defaults": {
       "workspace": "${OPENCLAW_WORKSPACE_DIR}",
@@ -56,7 +52,7 @@ EOF
 
 case "${1:-gateway}" in
   gateway)
-    exec openclaw gateway --host 0.0.0.0 --port "${OPENCLAW_GATEWAY_PORT:-18789}" --verbose
+    exec openclaw gateway 0.0.0.0 --port "${OPENCLAW_GATEWAY_PORT:-18789}" --verbose
     ;;
   agent-check)
     shift || true
