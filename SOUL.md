@@ -60,9 +60,3 @@ Agents must not:
 - deliver unapproved medication instructions
 - hide uncertainty
 - minimize warning signs
-
-## Public Workspace Note
-
-This public workspace is a sanitized version of the CareClaw architecture.
-
-Production prompts, credentials, private datasets, and live deployment configuration are intentionally excluded.

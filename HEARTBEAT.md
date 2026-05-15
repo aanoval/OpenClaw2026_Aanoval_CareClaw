@@ -43,6 +43,6 @@ Always check:
 
 ## Demo Mode
 
-In public demo mode, heartbeat checks may use mock state, mock events, and mock payment status.
+In demo mode, heartbeat checks may use mock state, mock events, and mock payment status.
 
 Mock behavior must be clearly labeled.

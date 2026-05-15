@@ -2,9 +2,7 @@
 
 CareClaw agents use tools to interact with workflow state, payment state, audit logs, and delivery channels.
 
-This public workspace documents sanitized tool contracts only.
-
-Production credentials and private integrations are intentionally excluded.
+Tools should be scoped by role and called only for their declared purpose.
 
 ## Shared Tools
 
@@ -56,7 +54,7 @@ paid
 failed
 ```
 
-In production, this concept maps to a real payment provider integration such as DOKU MCP Server.
+This concept maps to payment provider integrations such as DOKU MCP Server.
 
 ## Doctor Review Tools
 

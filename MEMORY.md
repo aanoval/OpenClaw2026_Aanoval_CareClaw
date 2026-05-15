@@ -38,7 +38,7 @@ Agent memory may include:
 
 ## Forbidden Memory
 
-Never store in public demo memory:
+Never store in workspace memory:
 
 - real patient data
 - production credentials
@@ -50,6 +50,6 @@ Never store in public demo memory:
 
 ## Demo Data Rule
 
-Public examples must use synthetic fictional data.
+Examples must use synthetic fictional data.
 
 If patient-like data appears in examples, it must be clearly fictional and not traceable to a real person.

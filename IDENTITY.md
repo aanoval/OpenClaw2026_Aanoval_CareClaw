@@ -44,9 +44,3 @@ This workspace should demonstrate:
 - structured output
 - doctor approval boundary
 - patient-friendly final delivery
-
-## Public vs Live Runtime
-
-The public repository demonstrates CareClaw's architecture and reproducible demo workflow.
-
-The live deployment may use private runtime prompts, private datasets, real provider credentials, and production deployment configuration that are intentionally excluded from this public workspace.

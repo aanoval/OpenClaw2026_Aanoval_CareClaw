@@ -23,7 +23,7 @@ Then read agent, schema, workflow, skill, and tool files as needed.
 - Preserve uncertainty.
 - Use tool calls only for their declared purpose.
 - Do not invent missing medical facts.
-- Do not expose private runtime assumptions.
+- Do not rely on unsupported runtime assumptions.
 - Do not request or reveal credentials.
 - Do not deliver final clinical output without doctor approval.
 
