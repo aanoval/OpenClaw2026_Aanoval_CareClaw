@@ -6,12 +6,16 @@
   "scripts": {
     "demo": "tsx src/demo.ts",
     "demo:agents": "tsx src/agentDemo.ts",
+    "demo:scenario": "tsx src/scenarioRunner.ts",
+    "demo:container-agent": "tsx src/agentContainer.ts",
+    "test:approval-gate": "tsx src/approvalGateTest.ts",
     "build": "npm run build:types && npm run build:web",
     "build:types": "tsc --noEmit",
     "build:web": "node apps/web/build.mjs",
     "start:api": "node apps/api/server.js"
   },
   "devDependencies": {
+    "@types/node": "^25.8.0",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }
