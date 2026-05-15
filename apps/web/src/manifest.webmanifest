@@ -2,14 +2,18 @@
   "name": "CareClaw",
   "short_name": "CareClaw",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#fff4df",
   "theme_color": "#fff4df",
+  "description": "Mobile-first doctor-reviewed consultation PWA.",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

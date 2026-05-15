@@ -52,6 +52,18 @@ body {
   align-items: flex-start;
 }
 
+.status-pill {
+  flex: 0 0 auto;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--mint);
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: capitalize;
+  box-shadow: 0 3px 0 var(--line);
+}
+
 .eyebrow,
 .label {
   margin: 0 0 6px;
@@ -207,6 +219,22 @@ textarea {
   display: grid;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.quick-choices {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 10px;
+}
+
+.choice-chip {
+  flex: 0 0 auto;
+  border-width: 2px;
+  background: white;
+  box-shadow: 0 3px 0 var(--line);
+  padding: 8px 11px;
+  font-size: 12px;
 }
 
 .bubble {

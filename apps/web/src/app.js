@@ -1,22 +1,22 @@
-const steps = [
-  'intake',
-  'symptoms',
-  'payment',
-  'brief',
-  'doctor',
-  'review',
-  'delivery'
-];
+const steps = ['intake', 'payment', 'waiting', 'doctor', 'result'];
+const STORAGE_KEY = 'careclaw_patient_state';
 
-const state = {
-  role: 'patient',
-  completed: []
+const defaultState = {
+  stage: 'intake',
+  completed: [],
+  messages: [],
+  intakeSessionId: null,
+  intakeReadyForPayment: false,
+  paymentSessionId: null,
+  payment: null,
+  lastUpdated: null
 };
 
+let state = loadState();
+let paymentPoll = null;
+
 const timeline = document.querySelector('#timeline');
-const roleToggle = document.querySelector('#roleToggle');
-const patientPanel = document.querySelector('#patientPanel');
-const doctorPanel = document.querySelector('#doctorPanel');
+const stagePill = document.querySelector('#stagePill');
 const sceneTitle = document.querySelector('#sceneTitle');
 const sceneText = document.querySelector('#sceneText');
 const briefText = document.querySelector('#briefText');
@@ -27,18 +27,44 @@ const queueText = document.querySelector('#queueText');
 const chatLog = document.querySelector('#chatLog');
 const createPayment = document.querySelector('#createPayment');
 const patientMessage = document.querySelector('#patientMessage');
+const quickChoices = document.querySelector('#quickChoices');
 
-let intakeSessionId = null;
-let intakeReadyForPayment = false;
-let paymentSessionId = null;
-let paymentPoll = null;
+function loadState() {
+  try {
+    return { ...defaultState, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') };
+  } catch {
+    return { ...defaultState };
+  }
+}
 
-function addChatMessage(role, text) {
+function saveState() {
+  state.lastUpdated = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  document.cookie = `careclaw_patient_stage=${state.stage}; Max-Age=31536000; Path=/; SameSite=Lax`;
+}
+
+function addChatMessage(role, text, persist = true) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${role}`;
   bubble.textContent = text;
   chatLog.appendChild(bubble);
   chatLog.scrollTop = chatLog.scrollHeight;
+  if (persist) {
+    state.messages.push({ role, text, at: new Date().toISOString() });
+    saveState();
+  }
+}
+
+function restoreChat() {
+  chatLog.innerHTML = '';
+  state.messages.forEach((message) => addChatMessage(message.role, message.text, false));
+}
+
+function setStage(stage, completed = state.completed) {
+  state.stage = stage;
+  state.completed = Array.from(new Set(completed));
+  saveState();
+  render();
 }
 
 function renderTimeline() {
@@ -61,6 +87,27 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+function renderQuickChoices(choices = []) {
+  quickChoices.innerHTML = '';
+  if (!choices.length) {
+    quickChoices.classList.add('hidden');
+    return;
+  }
+  choices.slice(0, 4).forEach((choice) => {
+    const value = typeof choice === 'string' ? choice : choice.label || choice.value;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'choice-chip';
+    button.textContent = value;
+    button.addEventListener('click', () => {
+      patientMessage.value = value;
+      patientMessage.focus();
+    });
+    quickChoices.appendChild(button);
+  });
+  quickChoices.classList.remove('hidden');
+}
+
 function renderPaymentChoices(choices = []) {
   paymentChoices.innerHTML = '';
   if (!choices.length) {
@@ -68,11 +115,13 @@ function renderPaymentChoices(choices = []) {
     return;
   }
   choices.forEach((choice) => {
+    const label = typeof choice === 'string' ? choice : choice.label;
+    const value = typeof choice === 'string' ? choice : choice.value;
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'secondary';
-    button.textContent = choice.label;
-    button.addEventListener('click', () => sendPaymentMessage(choice.value));
+    button.textContent = label;
+    button.addEventListener('click', () => sendPaymentMessage(value));
     paymentChoices.appendChild(button);
   });
   paymentChoices.classList.remove('hidden');
@@ -81,8 +130,8 @@ function renderPaymentChoices(choices = []) {
 function renderPaymentResult(payment) {
   if (!payment) return;
   const details = [
-    `<strong>${payment.method === 'qris' ? 'QRIS' : 'Virtual Account'}</strong>`,
-    `Nominal: ${payment.currency} ${Number(payment.amount || 0).toLocaleString('id-ID')}`
+    `<strong>${payment.method === 'QRIS' || payment.method === 'qris' ? 'QRIS' : 'Virtual Account'}</strong>`,
+    `Nominal: ${payment.currency || 'IDR'} ${Number(payment.amount || 0).toLocaleString('id-ID')}`
   ];
   if (payment.va_number) details.push(`Nomor VA ${payment.bank}: ${payment.va_number}`);
   if (payment.payment_url) details.push(`<a href="${payment.payment_url}" target="_blank" rel="noreferrer">Buka halaman pembayaran</a>`);
@@ -93,128 +142,124 @@ function renderPaymentResult(payment) {
 }
 
 async function sendPaymentMessage(message) {
-  if (!paymentSessionId) return;
+  if (!state.paymentSessionId) return;
   const payment = await api('/payment/chat/message', {
     method: 'POST',
-    body: JSON.stringify({ session_id: paymentSessionId, message })
+    body: JSON.stringify({ session_id: state.paymentSessionId, message })
   });
   briefText.textContent = payment.reply;
   renderPaymentChoices(payment.choices || []);
   if (payment.payment) {
-    renderPaymentResult(payment.payment);
+    state.payment = payment.payment;
     state.completed = Array.from(new Set([...state.completed, 'payment']));
-    setScene('Payment is waiting', 'Payment instructions are ready and the doctor queue will open after verification.');
+    setStage('waiting', state.completed);
+    renderPaymentResult(payment.payment);
+    setScene('Menunggu konfirmasi pembayaran', 'Setelah pembayaran masuk, Anda akan masuk antrean dokter.');
     startPaymentPolling();
   }
-  renderTimeline();
 }
 
 function startPaymentPolling() {
-  if (paymentPoll || !paymentSessionId) return;
+  if (paymentPoll || !state.paymentSessionId) return;
   paymentPoll = window.setInterval(async () => {
-    const status = await api(`/payment/chat/status/${paymentSessionId}`);
+    const status = await api(`/payment/chat/status/${state.paymentSessionId}`);
     if (status.followup) briefText.textContent = status.followup;
-    if (status.status === 'paid') {
+    if (status.status === 'paid' || status.paid) {
       window.clearInterval(paymentPoll);
       paymentPoll = null;
-      state.completed = Array.from(new Set([...state.completed, 'payment', 'brief']));
-      briefText.textContent = 'Pembayaran sudah masuk. Saya lanjutkan ke antrean dokter.';
-      setScene('Doctor queue unlocked', 'The payment status is verified and the doctor briefing workflow can begin.');
-      renderTimeline();
+      setStage('doctor', [...state.completed, 'waiting']);
+      briefText.textContent = 'Pembayaran sudah masuk. Anda masuk antrean dokter.';
+      setScene('Masuk antrean dokter', 'Dokter akan meninjau ringkasan awal sebelum chat dimulai.');
     }
-  }, 30000);
+  }, 15000);
 }
-
-roleToggle.addEventListener('click', () => {
-  state.role = state.role === 'patient' ? 'doctor' : 'patient';
-  roleToggle.textContent = state.role === 'patient' ? 'Doctor' : 'Patient';
-  patientPanel.classList.toggle('hidden', state.role !== 'patient');
-  doctorPanel.classList.toggle('hidden', state.role !== 'doctor');
-});
 
 async function startIntakeIfNeeded() {
-  if (intakeSessionId) return;
+  if (state.intakeSessionId) return;
   const start = await api('/intake/start', { method: 'POST', body: '{}' });
-  intakeSessionId = start.session_id;
+  state.intakeSessionId = start.session_id;
   addChatMessage('agent', start.reply);
+  saveState();
 }
 
-document.querySelector('#startConsultation').addEventListener('click', async () => {
+async function sendPatientMessage() {
   await startIntakeIfNeeded();
   const message = patientMessage.value.trim();
   if (!message) return;
   addChatMessage('patient', message);
   patientMessage.value = '';
+  renderQuickChoices([]);
 
   const intake = await api('/intake/message', {
     method: 'POST',
-    body: JSON.stringify({ session_id: intakeSessionId, message })
+    body: JSON.stringify({ session_id: state.intakeSessionId, message })
   });
 
   addChatMessage('agent', intake.reply);
+  renderQuickChoices(intake.choices || []);
   state.completed = ['intake'];
   if (intake.ready_for_payment) {
-    intakeReadyForPayment = true;
-    state.completed.push('symptoms');
+    state.intakeReadyForPayment = true;
     createPayment.classList.remove('hidden');
-    briefText.textContent = 'Informasi awal sudah cukup. Silakan lanjut ke pembayaran agar masuk antrean dokter.';
-    setScene('Anamnesis is ready', 'The consultation can move to payment and doctor handoff.');
+    briefText.textContent = 'Ringkasan awal sudah siap. Lanjutkan pembayaran agar masuk antrean dokter.';
+    setStage('payment', ['intake']);
+    setScene('Siap lanjut pembayaran', 'Dokter akan menerima ringkasan anamnesis yang sudah disusun.');
   } else {
-    briefText.textContent = `Intake agent is still collecting: ${(intake.missing_fields || []).join(', ') || 'more clinical context'}.`;
-    setScene('Intake agent is asking follow-up questions', 'Answer the next anamnesis question so the doctor receives a structured briefing.');
+    briefText.textContent = 'Saya masih melengkapi anamnesis agar dokter tidak perlu banyak mengulang pertanyaan.';
+    setScene('Anamnesis berlangsung', 'Jawab pertanyaan berikutnya agar ringkasan untuk dokter makin lengkap.');
+    setStage('intake', ['intake']);
   }
-  renderTimeline();
-});
+}
 
 createPayment.addEventListener('click', async () => {
-  if (!intakeReadyForPayment) return;
+  if (!state.intakeReadyForPayment) return;
   const payment = await api('/payment/chat/start', {
     method: 'POST',
-    body: JSON.stringify({ intake_session_id: intakeSessionId })
+    body: JSON.stringify({ intake_session_id: state.intakeSessionId })
   });
-  paymentSessionId = payment.session_id;
-  paymentLink.classList.add('hidden');
+  state.paymentSessionId = payment.session_id;
+  saveState();
   paymentResult.classList.add('hidden');
   briefText.textContent = payment.reply;
   renderPaymentChoices(payment.choices || []);
-  setScene('Payment is ready', 'Choose a payment method to continue to the doctor queue.');
-  renderTimeline();
+  setScene('Pilih metode pembayaran', 'Pembayaran diperlukan sebelum chat dokter dibuka.');
+  render();
+});
+
+document.querySelector('#startConsultation').addEventListener('click', () => {
+  sendPatientMessage().catch((error) => {
+    briefText.textContent = error.message;
+  });
 });
 
 document.querySelector('#mockVoice').addEventListener('click', () => {
   patientMessage.value = 'Transkrip voice note: saya demam, batuk, dan badan lemas sejak 3 hari.';
-  setScene('Voice note captured', 'The voice note is represented as a transcript and can be sent to the intake agent.');
+  setScene('Voice note siap dikirim', 'Transkrip voice note bisa dikirim seperti pesan biasa.');
 });
 
-document.querySelector('#doctorLogin').addEventListener('click', async () => {
-  const username = document.querySelector('#doctorUser').value;
-  const password = document.querySelector('#doctorPass').value;
-  const login = await api('/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password })
-  });
-  if (login.authenticated) {
-    state.completed = Array.from(new Set([...state.completed, 'doctor']));
-    setScene('Doctor workspace active', 'Doctor authentication succeeded. The review package is ready for approval.');
-    renderTimeline();
+patientMessage.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendPatientMessage().catch((error) => {
+      briefText.textContent = error.message;
+    });
   }
 });
 
-document.querySelector('#approveFinal').addEventListener('click', async () => {
-  const approval = await api('/doctor/approve', { method: 'POST', body: '{}' });
-  if (approval.approved) {
-    state.completed = Array.from(new Set([...state.completed, 'review', 'delivery']));
-    setScene('Final instructions delivered', 'Doctor-approved instructions are ready for the patient.');
-    briefText.textContent = 'Final output approved by doctor. Delivery agent may send patient-facing instructions.';
-    renderTimeline();
-  }
-});
+function render() {
+  stagePill.textContent = state.stage.replace('_', ' ');
+  renderTimeline();
+  createPayment.classList.toggle('hidden', !state.intakeReadyForPayment || state.stage === 'waiting' || state.stage === 'doctor');
+  if (state.payment) renderPaymentResult(state.payment);
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 }
 
-renderTimeline();
+restoreChat();
+render();
 startIntakeIfNeeded().catch(() => {
-  addChatMessage('agent', 'CareClaw intake is preparing your consultation.');
+  addChatMessage('agent', 'CareClaw sedang menyiapkan sesi konsultasi.');
 });
+if (state.paymentSessionId && state.stage === 'waiting') startPaymentPolling();

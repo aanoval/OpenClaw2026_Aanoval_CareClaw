@@ -15,9 +15,9 @@
         <section class="topbar">
           <div>
             <p class="eyebrow">CareClaw</p>
-            <h1>Guided care, doctor reviewed.</h1>
+            <h1>Chat dulu, dokter meninjau.</h1>
           </div>
-          <button class="icon-button" id="roleToggle" type="button">Doctor</button>
+          <div class="status-pill" id="stagePill">Intake</div>
         </section>
 
         <section class="scene" aria-label="Consultation progress">
@@ -29,8 +29,8 @@
             </div>
             <div>
               <p class="label">Agent workflow</p>
-              <h2 id="sceneTitle">Patient intake is ready</h2>
-              <p id="sceneText">Describe symptoms by text or voice note. The intake agent will structure the conversation before payment and doctor review.</p>
+              <h2 id="sceneTitle">Ceritakan keluhan Anda</h2>
+              <p id="sceneText">Saya akan menanyakan beberapa hal penting agar dokter menerima ringkasan yang rapi.</p>
             </div>
           </div>
         </section>
@@ -38,35 +38,24 @@
         <section class="timeline" id="timeline" aria-label="Agent timeline"></section>
 
         <section class="panel patient-panel" id="patientPanel">
-          <label for="patientMessage">Patient message</label>
+          <label for="patientMessage">Chat konsultasi</label>
           <div class="chat-log" id="chatLog" aria-live="polite"></div>
-          <textarea id="patientMessage" placeholder="Tulis keluhan Anda di sini...">Saya demam dan batuk sejak 3 hari.</textarea>
+          <div id="quickChoices" class="quick-choices hidden"></div>
+          <textarea id="patientMessage" placeholder="Tulis keluhan Anda di sini..."></textarea>
           <div class="actions">
-            <button id="startConsultation" type="button">Send</button>
+            <button id="startConsultation" type="button">Kirim</button>
             <button id="mockVoice" type="button" class="secondary">Voice note</button>
           </div>
-          <button id="createPayment" type="button" class="payment-button hidden">Create DOKU payment link</button>
-        </section>
-
-        <section class="panel doctor-panel hidden" id="doctorPanel">
-          <label for="doctorUser">Doctor login</label>
-          <div class="login-grid">
-            <input id="doctorUser" placeholder="Username" autocomplete="username" />
-            <input id="doctorPass" placeholder="Password" type="password" autocomplete="current-password" />
-          </div>
-          <div class="actions">
-            <button id="doctorLogin" type="button">Login</button>
-            <button id="approveFinal" type="button" class="secondary">Approve final</button>
-          </div>
+          <button id="createPayment" type="button" class="payment-button hidden">Lanjut ke pembayaran</button>
         </section>
 
         <section class="brief" id="brief">
-          <p class="label">Doctor brief</p>
-          <p id="briefText">Waiting for workflow activity.</p>
-          <a id="paymentLink" class="payment-link hidden" href="#" target="_blank" rel="noreferrer">Open DOKU payment link</a>
+          <p class="label">Status</p>
+          <p id="briefText">Menyiapkan sesi konsultasi.</p>
+          <a id="paymentLink" class="payment-link hidden" href="#" target="_blank" rel="noreferrer">Buka pembayaran</a>
           <div id="paymentChoices" class="payment-choices hidden"></div>
           <div id="paymentResult" class="payment-result hidden"></div>
-          <p id="queueText" class="queue-text hidden">Waiting for payment verification before doctor chat.</p>
+          <p id="queueText" class="queue-text hidden">Menunggu konfirmasi pembayaran sebelum masuk antrean dokter.</p>
         </section>
       </main>
     </div>
