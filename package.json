@@ -6,6 +6,7 @@
   "scripts": {
     "demo": "tsx src/demo.ts",
     "demo:agents": "tsx src/agentDemo.ts",
+    "demo:handoff": "tsx src/handoffDemo.ts",
     "demo:scenario": "tsx src/scenarioRunner.ts",
     "demo:container-agent": "tsx src/agentContainer.ts",
     "test:approval-gate": "tsx src/approvalGateTest.ts",

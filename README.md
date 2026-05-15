@@ -15,6 +15,7 @@ Run the autonomous multi-agent workflow:
 ```bash
 npm install
 npm run demo:agents
+npm run demo:handoff
 ```
 
 Run scenario-based demos:
@@ -116,6 +117,51 @@ CareClaw uses a shared workspace and an autonomous loop:
 - post-consultation tasks are queued as workspace tasks instead of being hidden inside one function
 
 The public demo entry point is `src/agentDemo.ts`, which calls `runAutonomousLoop()` from `src/autonomousLoop.ts`.
+
+## Autonomous Consultation Handoff
+
+The main autonomous task is:
+
+> Transform a raw patient complaint into a doctor-ready consultation handoff.
+
+This task is intentionally different from a plain LLM chat response. It produces a completed workflow artifact with agent decisions, tool calls, handoffs, a payment gate, and a doctor briefing.
+
+Run it locally:
+
+```bash
+npm run demo:handoff -- "Saya demam dan batuk sejak 3 hari, badan lemas."
+```
+
+Expected shape:
+
+```json
+{
+  "task": "autonomous_consultation_handoff",
+  "task_status": "completed",
+  "source_runtime": "openclaw_workspace",
+  "tool_calls": [
+    { "tool": "collect_patient_intake", "agent": "intake", "status": "completed" },
+    { "tool": "extract_symptoms_and_red_flags", "agent": "symptom-extraction", "status": "completed" },
+    { "tool": "create_payment_gate", "agent": "payment", "status": "completed" },
+    { "tool": "write_doctor_briefing", "agent": "doctor-briefing", "status": "completed" }
+  ],
+  "agent_handoffs": [],
+  "doctor_briefing": "Patient reports fever, cough...",
+  "payment_gate": {
+    "status": "payment_required",
+    "consultation_unlocked": false
+  }
+}
+```
+
+The deployed API exposes the same product surface:
+
+```text
+POST /api/agent/handoff
+GET  /api/agent/tasks/:id/trace
+```
+
+The handoff endpoint makes the OpenClaw-based workflow visible as a task that reaches completion, rather than only as a conversational assistant.
 
 ## Goals
 
@@ -435,6 +481,8 @@ POST /auth/register
 POST /auth/login
 GET  /auth/me
 GET  /history
+POST /agent/handoff
+GET  /agent/tasks/:id/trace
 POST /login
 GET  /consultation/demo
 POST /consultation/start

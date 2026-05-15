@@ -14,6 +14,7 @@ const doctorLogin = {
 const intakeSessions = new Map();
 const paymentSessions = new Map();
 const consultationSessions = new Map();
+const handoffTasks = new Map();
 const doctorTokens = new Set();
 const patientTokens = new Map();
 const storeFile = process.env.CARECLAW_STORE_FILE || path.join(process.cwd(), '.data', 'careclaw-store.json');
@@ -109,6 +110,127 @@ const demoConsultation = {
     prescription: 'No autonomous prescription. Doctor approval required.'
   }
 };
+
+function detectHandoffSymptoms(text) {
+  const symptoms = [];
+  if (/fever|demam|panas/i.test(text)) symptoms.push('fever');
+  if (/cough|batuk/i.test(text)) symptoms.push('cough');
+  if (/headache|sakit kepala|pusing/i.test(text)) symptoms.push('headache');
+  if (/stomach|perut|mual|vomit|muntah|diarrhea|diare/i.test(text)) symptoms.push('gastrointestinal symptoms');
+  if (/rash|ruam|gatal|bentol/i.test(text)) symptoms.push('skin concern');
+  if (/chest pain|nyeri dada/i.test(text)) symptoms.push('chest pain');
+  if (/shortness|sesak/i.test(text)) symptoms.push('shortness of breath');
+  return symptoms.length ? symptoms : ['reported concern'];
+}
+
+function detectHandoffRedFlags(text) {
+  const redFlags = [];
+  if (/sesak berat|severe shortness|shortness of breath|sesak/i.test(text)) redFlags.push('breathing difficulty');
+  if (/nyeri dada|chest pain/i.test(text)) redFlags.push('chest pain');
+  if (/pingsan|faint|seizure|kejang/i.test(text)) redFlags.push('loss of consciousness or seizure');
+  if (/hamil|pregnan/i.test(text) && /perdarahan|bleeding|nyeri hebat/i.test(text)) redFlags.push('pregnancy danger sign');
+  return redFlags;
+}
+
+function detectHandoffDuration(text) {
+  const match = text.match(/(\d+\s*(hari|day|days|jam|hour|hours|minggu|week|weeks))/i);
+  return match ? match[1] : 'not specified';
+}
+
+function runAutonomousHandoffTask(message) {
+  const taskId = `handoff-${randomUUID()}`;
+  const symptoms = detectHandoffSymptoms(message);
+  const redFlags = detectHandoffRedFlags(message);
+  const duration = detectHandoffDuration(message);
+  const invoiceId = `INV-${Date.now()}`;
+  const now = new Date().toISOString();
+  const doctorBriefing = [
+    `Patient reports ${symptoms.join(', ')}.`,
+    `Duration: ${duration}.`,
+    redFlags.length ? `Safety attention: ${redFlags.join(', ')}.` : 'No red flags were detected in the initial handoff demo.',
+    'Doctor should verify history, examination context, allergies, medication use, and risk factors before giving final advice.'
+  ].join(' ');
+
+  const toolCalls = [
+    {
+      tool: 'collect_patient_intake',
+      agent: 'intake',
+      purpose: 'Convert raw patient text into initial clinical intake.',
+      status: 'completed',
+      output: { chief_complaint: message.slice(0, 160), duration }
+    },
+    {
+      tool: 'extract_symptoms_and_red_flags',
+      agent: 'symptom-extraction',
+      purpose: 'Structure symptoms and detect safety signals.',
+      status: 'completed',
+      output: { symptoms, duration, red_flags: redFlags }
+    },
+    {
+      tool: 'create_payment_gate',
+      agent: 'payment',
+      purpose: 'Create the payment gate before doctor queue access.',
+      status: 'completed',
+      output: { invoice_id: invoiceId, status: 'payment_required', consultation_unlocked: false }
+    },
+    {
+      tool: 'write_doctor_briefing',
+      agent: 'doctor-briefing',
+      purpose: 'Prepare the doctor-facing handoff summary.',
+      status: 'completed',
+      output: { summary: doctorBriefing }
+    }
+  ];
+
+  const task = {
+    id: taskId,
+    task: 'autonomous_consultation_handoff',
+    task_status: 'completed',
+    source_runtime: 'openclaw_workspace',
+    created_at: now,
+    completed_at: now,
+    input: message,
+    agent_trace: [
+      { step: 1, agent: 'orchestrator', decision: 'Raw patient message requires structured intake.', next: 'intake' },
+      { step: 2, agent: 'intake', decision: 'Chief complaint and duration context were extracted.', next: 'symptom-extraction' },
+      {
+        step: 3,
+        agent: 'symptom-extraction',
+        decision: redFlags.length ? 'Red flags were detected and must be shown in the doctor handoff.' : 'No red flags detected; payment gate can be prepared.',
+        next: 'payment'
+      },
+      { step: 4, agent: 'payment', decision: 'Doctor queue remains gated until payment is completed.', next: 'doctor-briefing' },
+      { step: 5, agent: 'doctor-briefing', decision: 'Doctor briefing is ready; handoff task is complete.', next: 'doctor-queue' }
+    ],
+    tool_calls: toolCalls,
+    agent_handoffs: [
+      { from: 'orchestrator', to: 'intake', intent: 'decision', summary: 'Start autonomous consultation handoff.' },
+      { from: 'intake', to: 'symptom-extraction', intent: 'handoff', summary: 'Initial patient context is ready for structuring.' },
+      {
+        from: 'symptom-extraction',
+        to: redFlags.length ? 'doctor-briefing' : 'payment',
+        intent: redFlags.length ? 'safety-gate' : 'handoff',
+        summary: redFlags.length ? `Safety signals: ${redFlags.join(', ')}` : `Symptoms structured: ${symptoms.join(', ')}`
+      },
+      { from: 'payment', to: 'doctor-briefing', intent: 'tool-result', summary: `Payment gate created: ${invoiceId}` },
+      { from: 'doctor-briefing', to: 'doctor', intent: 'handoff', summary: doctorBriefing }
+    ],
+    doctor_briefing: doctorBriefing,
+    payment_gate: {
+      status: 'payment_required',
+      invoice_id: invoiceId,
+      consultation_unlocked: false
+    },
+    final_state: {
+      status: 'doctor_handoff_ready',
+      symptoms,
+      red_flags: redFlags,
+      doctor_brief: doctorBriefing
+    }
+  };
+  handoffTasks.set(taskId, task);
+  return task;
+}
 
 function emptyStore() {
   return {
@@ -900,6 +1022,38 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/health') {
       sendJson(res, 200, { status: 'ok', service: 'careclaw-api' });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/agent/handoff') {
+      const body = await readBody(req);
+      const message = String(body.message || body.input || '').trim();
+      if (!message) {
+        sendJson(res, 400, { error: 'Message is required' });
+        return;
+      }
+      const task = runAutonomousHandoffTask(message);
+      sendJson(res, 200, task);
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/agent/tasks/') && url.pathname.endsWith('/trace')) {
+      const taskId = url.pathname.split('/')[3];
+      const task = handoffTasks.get(taskId);
+      if (!task) {
+        sendJson(res, 404, { error: 'Agent task not found' });
+        return;
+      }
+      sendJson(res, 200, {
+        id: task.id,
+        task: task.task,
+        task_status: task.task_status,
+        source_runtime: task.source_runtime,
+        agent_trace: task.agent_trace,
+        tool_calls: task.tool_calls,
+        agent_handoffs: task.agent_handoffs,
+        final_state: task.final_state
+      });
       return;
     }
 
