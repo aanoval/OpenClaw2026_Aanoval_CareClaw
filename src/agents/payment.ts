@@ -1,5 +1,6 @@
 import { createMockInvoice, verifyMockPayment } from '../tools/mockPayment.js';
 import { createAgentResult } from '../agentRuntime.js';
+import { DokuPaymentMock } from '../tools/dokuPaymentMock.js';
 import type { AgentResult, ConsultationState, PaymentOutput } from '../types.js';
 
 export function runPaymentGate(consultationId: string) {
@@ -14,13 +15,14 @@ export function runPaymentGate(consultationId: string) {
 }
 
 export function runBillingPaymentAgent(state: ConsultationState): AgentResult<PaymentOutput> {
-  const invoice = createMockInvoice(state.consultation_id);
-  const payment = verifyMockPayment() as { status: PaymentOutput['status']; event: string };
+  const paymentTool = new DokuPaymentMock();
+  const invoice = paymentTool.createInvoice(state.consultation_id);
+  const payment = paymentTool.verifyPayment(invoice.output.invoice_id);
   const output: PaymentOutput = {
-    invoice_id: invoice.invoice_id,
-    status: payment.status,
-    consultation_unlocked: payment.status === 'paid',
-    provider: 'DOKU MCP compatible mock'
+    invoice_id: invoice.output.invoice_id,
+    status: payment.output.status,
+    consultation_unlocked: payment.output.consultation_unlocked,
+    provider: invoice.output.provider
   };
 
   return createAgentResult('payment', 'payment.paid', output, [
