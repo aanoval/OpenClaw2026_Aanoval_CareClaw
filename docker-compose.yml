@@ -3,7 +3,7 @@ services:
     build: .
     environment:
       NODE_ENV: production
-    command: npm run demo:agents
+    command: sh -c 'if [ -n "$$AGENT_NAME" ]; then npm run demo:container-agent; else npm run demo:agents; fi'
   careclaw-orchestrator:
     build: .
     profiles: ["agents"]
