@@ -46,7 +46,7 @@ Never store in workspace memory:
 - private datasets
 - payment secrets
 - full payment payload logs
-- VPS access details
+- infrastructure access details
 
 ## Demo Data Rule
 

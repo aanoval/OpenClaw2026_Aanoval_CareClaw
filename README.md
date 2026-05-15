@@ -114,31 +114,66 @@ The goal is to reduce friction, structure communication, and improve efficiency 
 - Lab result interpretation
 - Voice consultation support
 
-## Deployment Direction
-
-CareClaw is planned for:
-
-```text
-webdr.id
-```
-
-The existing site will be rebuilt as a mobile-first PWA with a guided, illustrative consultation journey.
-
-OpenClaw agents should run in Docker containers because the VPS already hosts other OpenClaw agents.
-
-The recommended deployment model is one OpenClaw base image running as multiple isolated agent containers, each with its own role, tool scope, prompt mount, event topic, and secret scope.
-
-Detailed planning notes are kept internal during the hackathon build.
-
 ## Repository Structure
 
 ```text
 careclaw/
   README.md
   PRD.md
+  openclaw/
+    workspace/
+      BOOT.md
+      HEARTBEAT.md
+      IDENTITY.md
+      MEMORY.md
+      SOUL.md
+      TOOLS.md
   agents/
+  apps/
+    web/
+    api/
+  packages/
+    workflow/
+    schemas/
+    tools/
+    demo/
   schemas/
   workflows/
+  examples/
+  skills/
+```
+
+## Workspace Layout
+
+CareClaw is organized as a multi-agent product repository.
+
+The OpenClaw workspace-level identity files live under:
+
+```text
+openclaw/workspace/
+```
+
+Agent-specific documentation and implementation will live under:
+
+```text
+agents/
+```
+
+Frontend and backend application code will live under:
+
+```text
+apps/web/
+apps/api/
+```
+
+Shared workflow, schema, tool, and demo code will live under:
+
+```text
+packages/
+schemas/
+workflows/
+examples/
+skills/
 ```
 
 ## Status
