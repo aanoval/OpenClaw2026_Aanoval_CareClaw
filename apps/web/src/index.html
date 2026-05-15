@@ -23,6 +23,13 @@
         <section class="screen patient-screen" id="patientPanel">
           <section class="tab-view" data-tab-view="chat">
             <div class="chat-log" id="chatLog" aria-live="polite"></div>
+            <section class="agent-process hidden" id="agentProcess">
+              <button id="toggleAgentProcess" type="button" class="secondary process-toggle">
+                <span class="button-icon history-icon" aria-hidden="true"></span>
+                <span id="agentProcessToggleText">Lihat proses</span>
+              </button>
+              <div id="agentProcessBody" class="agent-process-body hidden"></div>
+            </section>
             <div id="quickChoices" class="quick-choices hidden"></div>
             <div id="paymentChoices" class="payment-choices hidden"></div>
             <div id="paymentResult" class="payment-result hidden"></div>

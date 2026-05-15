@@ -13,6 +13,8 @@ const defaultState = {
   paymentSessionId: null,
   payment: null,
   consultationId: null,
+  showAgentProcess: false,
+  agentProcess: null,
   user: null,
   history: null,
   lastUpdated: null
@@ -51,6 +53,10 @@ const loginForm = document.querySelector('#loginForm');
 const registerForm = document.querySelector('#registerForm');
 const historyGate = document.querySelector('#historyGate');
 const historyList = document.querySelector('#historyList');
+const agentProcess = document.querySelector('#agentProcess');
+const toggleAgentProcess = document.querySelector('#toggleAgentProcess');
+const agentProcessToggleText = document.querySelector('#agentProcessToggleText');
+const agentProcessBody = document.querySelector('#agentProcessBody');
 const patientSendButton = document.querySelector('#startConsultation');
 const doctorSendButton = document.querySelector('#sendDoctorMessage');
 let patientTypingBubble = null;
@@ -175,6 +181,47 @@ function renderChips(target, choices = [], handler) {
   target.classList.remove('hidden');
 }
 
+function renderAgentProcess() {
+  if (!agentProcess || !agentProcessBody || !agentProcessToggleText) return;
+  const process = state.agentProcess;
+  agentProcess.classList.toggle('hidden', !process);
+  if (!process) return;
+
+  agentProcessToggleText.textContent = state.showAgentProcess ? 'Sembunyikan proses' : 'Lihat proses';
+  agentProcessBody.classList.toggle('hidden', !state.showAgentProcess);
+  if (!state.showAgentProcess) return;
+
+  const tools = (process.tool_calls || [])
+    .map((item) => `<li><strong>${item.agent}</strong><span>${item.tool}</span></li>`)
+    .join('');
+  const trace = (process.agent_trace || [])
+    .map((item) => `<li><strong>${item.agent}</strong><span>${item.decision}</span></li>`)
+    .join('');
+
+  agentProcessBody.innerHTML = `
+    <div class="process-grid">
+      <div><strong>Status</strong><span>${process.task_status || 'completed'}</span></div>
+      <div><strong>Task</strong><span>${process.task || 'consultation handoff'}</span></div>
+    </div>
+    <p>${process.doctor_briefing || 'Ringkasan dokter sedang disiapkan.'}</p>
+    <strong>Tool call</strong>
+    <ul>${tools}</ul>
+    <strong>Keputusan</strong>
+    <ul>${trace}</ul>
+  `;
+}
+
+async function refreshAgentProcess(message) {
+  if (!message) return;
+  const process = await api('/agent/handoff', {
+    method: 'POST',
+    body: JSON.stringify({ message })
+  });
+  state.agentProcess = process;
+  savePatientState();
+  renderAgentProcess();
+}
+
 function renderPaymentResult(payment) {
   if (!payment) return;
   const details = [
@@ -251,6 +298,7 @@ async function sendPatientMessage() {
       setStage('chat');
       setScene('Lanjut jawab', 'Saya bantu rangkum pelan-pelan.');
     }
+    refreshAgentProcess(message).catch(() => {});
   } finally {
     removeTyping(patientTypingBubble);
     patientTypingBubble = null;
@@ -406,6 +454,7 @@ function renderPatient() {
   createPayment.classList.toggle('hidden', !state.intakeReadyForPayment || ['waiting', 'doctor', 'done'].includes(state.stage));
   if (state.payment) renderPaymentResult(state.payment);
   renderDoctorPatientState();
+  renderAgentProcess();
   renderAccount();
   renderHistory();
 }
@@ -586,6 +635,12 @@ function bootDoctor() {
 
 patientNav.querySelectorAll('button').forEach((button) => {
   button.addEventListener('click', () => switchTab(button.dataset.tab));
+});
+
+toggleAgentProcess?.addEventListener('click', () => {
+  state.showAgentProcess = !state.showAgentProcess;
+  savePatientState();
+  renderAgentProcess();
 });
 
 patientSendButton.addEventListener('click', () => sendPatientMessage().catch(showError));
