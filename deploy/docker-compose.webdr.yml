@@ -21,9 +21,35 @@ services:
     ports:
       - "127.0.0.1:8050:8050"
 
+  careclaw-openclaw:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.openclaw
+    restart: unless-stopped
+    env_file:
+      - .env.openclaw
+    environment:
+      OPENCLAW_GATEWAY_PORT: 18789
+      OPENCLAW_MODEL_PROVIDER: sumopod
+      OPENCLAW_MODEL_ID: gpt-4o-mini
+    ports:
+      - "127.0.0.1:18789:18789"
+
   careclaw-agents-check:
     build:
       context: ..
       dockerfile: Dockerfile
     profiles: ["check"]
     command: npm run demo:agents
+
+  careclaw-openclaw-check:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.openclaw
+    profiles: ["check"]
+    env_file:
+      - .env.openclaw
+    environment:
+      OPENCLAW_MODEL_PROVIDER: sumopod
+      OPENCLAW_MODEL_ID: gpt-4o-mini
+    command: agent-check

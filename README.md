@@ -261,6 +261,17 @@ docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-age
 
 The patient flow creates a DOKU-compatible demo payment link and moves the patient into a waiting-for-doctor-chat state. Real DOKU credentials should be configured outside this public repository.
 
+The same compose file can run an OpenClaw gateway with a CareClaw workspace:
+
+```bash
+cd deploy
+cp openclaw.env.example .env.openclaw
+docker-compose -f docker-compose.webdr.yml up -d --build careclaw-openclaw
+docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-openclaw-check
+```
+
+`.env.openclaw` must stay private and should provide the OpenAI-compatible provider values for the selected model gateway.
+
 ## Web App Demo
 
 Build the mobile-first PWA shell:
