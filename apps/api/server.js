@@ -115,6 +115,42 @@ function fallbackIntakeReply(session, message) {
   };
 }
 
+function normalizeIntakeResult(session, result) {
+  const allText = session.messages.map((item) => item.content).join(' ').toLowerCase();
+  const collected = { ...(result.collected || {}) };
+  const durationMatch = allText.match(/(\d+\s*(hari|day|days|jam|hour|hours|minggu|week|weeks))/i);
+  if (durationMatch && !collected.duration) collected.duration = durationMatch[1];
+  if (/(tidak ada alergi|tidak alergi|no allerg|no known allerg)/i.test(allText)) collected.allergies = collected.allergies || 'none reported';
+  if (/(paracetamol|ibuprofen|obat|medicine|medication)/i.test(allText)) collected.current_medication = collected.current_medication || 'reported in conversation';
+  if (/(tidak punya riwayat|tidak ada riwayat|no chronic|no medical history)/i.test(allText)) collected.chronic_history = collected.chronic_history || 'none reported';
+  if (/(tidak sesak|tidak nyeri dada|no shortness|no chest pain)/i.test(allText)) collected.red_flags = Array.isArray(collected.red_flags) ? collected.red_flags : [];
+  if (/(ringan|mild)/i.test(allText) && !collected.severity) collected.severity = 'mild';
+  if (/(sedang|moderate)/i.test(allText) && !collected.severity) collected.severity = 'moderate';
+  if (/(berat|severe)/i.test(allText) && !collected.severity) collected.severity = 'severe';
+
+  const missing = new Set(Array.isArray(result.missing_fields) ? result.missing_fields : []);
+  if (collected.duration) missing.delete('duration');
+  if (collected.allergies) missing.delete('allergies');
+  if (collected.current_medication) missing.delete('current_medication');
+  if (collected.chronic_history) missing.delete('chronic_history');
+  if (collected.severity) missing.delete('severity');
+
+  const userTurns = session.messages.filter((item) => item.role === 'user').length;
+  const enoughCoreData = Boolean(collected.chief_complaint && collected.duration && collected.severity);
+  const enoughSafetyData = Boolean(collected.allergies || userTurns >= 3) && Boolean(collected.current_medication || userTurns >= 3);
+  const readyForPayment = Boolean(result.ready_for_payment) || (userTurns >= 3 && enoughCoreData && enoughSafetyData);
+
+  return {
+    ...result,
+    collected,
+    missing_fields: readyForPayment ? [] : Array.from(missing).slice(0, 4),
+    ready_for_payment: readyForPayment,
+    reply: readyForPayment
+      ? 'Terima kasih. Informasi anamnesis awal sudah cukup. Silakan lanjut membuat link pembayaran agar Anda masuk antrean chat dokter.'
+      : result.reply
+  };
+}
+
 async function runIntakeAi(session, message) {
   if (!aiConfig.apiKey) return fallbackIntakeReply(session, message);
 
@@ -145,7 +181,7 @@ async function runIntakeAi(session, message) {
   if (typeof content !== 'string') return fallbackIntakeReply(session, message);
 
   try {
-    return { ...JSON.parse(content), source: 'sumopod' };
+    return normalizeIntakeResult(session, { ...JSON.parse(content), source: 'sumopod' });
   } catch {
     return fallbackIntakeReply(session, message);
   }
