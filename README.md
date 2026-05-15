@@ -8,7 +8,7 @@ It does not replace doctors. AI handles the workflow; doctors make the medical d
 
 > Better doctor-patient communication through coordinated healthcare agents.
 
-## Judge Quick Start
+## Quick Start
 
 Run the autonomous multi-agent workflow:
 
@@ -41,20 +41,31 @@ Expected demo result:
 
 ```json
 {
-  "workflow": "careclaw-public-agent-demo",
+  "workflow": "careclaw-public-autonomous-workspace-demo",
   "final_status": "final_delivery_sent",
   "doctor_approved": true,
   "delivered": true,
-  "events": [
-    "orchestrator.next_event.selected",
-    "intake.completed",
-    "symptoms.extracted",
-    "payment.paid",
-    "doctor.brief.ready",
-    "soap.created",
-    "patient_education.created",
-    "doctor.approved",
-    "final.sent"
+  "pending_tasks": [],
+  "completed_tasks": [
+    "intake.collect",
+    "symptoms.extract",
+    "payment.verify",
+    "doctor.brief",
+    "doctor.chat",
+    "post_consultation.plan",
+    "soap.create",
+    "prescription.draft",
+    "patient_education.create",
+    "doctor.final_review",
+    "final.delivery"
+  ],
+  "agent_messages": [
+    {
+      "from": "orchestrator",
+      "to": "payment",
+      "intent": "decision",
+      "summary": "Doctor access remains locked until payment is verified."
+    }
   ]
 }
 ```
@@ -92,6 +103,19 @@ The system can:
 - draft SOAP and patient education after consultation
 - prevent final delivery until doctor approval
 - keep payment, doctor chat, and final delivery as separate workflow states
+
+## Why CareClaw Is an Autonomous Multi-Agent System
+
+CareClaw uses a shared workspace and an autonomous loop:
+
+- agents share one workspace with patient timeline, agent messages, pending tasks, completed tasks, red flags, payment status, doctor approval status, and final delivery status
+- planner agent decides the next agent dynamically from workspace state
+- each agent writes handoff or safety messages back into the workspace
+- the loop continues until final delivery is completed
+- payment and doctor approval gates can block unsafe or unpaid transitions
+- post-consultation tasks are queued as workspace tasks instead of being hidden inside one function
+
+The public demo entry point is `src/agentDemo.ts`, which calls `runAutonomousLoop()` from `src/autonomousLoop.ts`.
 
 ## Goals
 
@@ -180,7 +204,7 @@ CareClaw uses a DOKU-compatible payment agent for consultation payment workflows
 
 The Billing and Payment Agent can chat with the patient, offer QRIS or Virtual Account options, create direct Non-SNAP VA instructions for supported banks, follow up while payment is pending, and unlock doctor access after successful payment verification.
 
-The public agent demo uses deterministic mock payment for judge reproducibility. The deployed API and production adapter support DOKU-compatible QRIS and Virtual Account flows through private credentials configured outside this public repository.
+The public agent demo uses deterministic mock payment for reproducible local runs. The deployed API and production adapter support DOKU-compatible QRIS and Virtual Account flows through private credentials configured outside this public repository.
 
 ## Key Philosophy
 
@@ -296,7 +320,7 @@ doctor final approval
 final delivery
 ```
 
-The multi-agent demo emits a workflow event log and final consultation state so judges can verify autonomous agent execution from intake to doctor-approved delivery.
+The multi-agent demo emits workspace tasks, agent handoff messages, a workflow event log, and final consultation state so autonomous execution can be verified from intake to doctor-approved delivery.
 
 ## Docker Agent Demo
 
