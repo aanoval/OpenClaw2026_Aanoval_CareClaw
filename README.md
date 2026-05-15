@@ -215,6 +215,40 @@ docker compose up --build
 
 The container runs `npm run demo:agents` by default. The public Docker workflow uses deterministic mock tools and does not require private credentials.
 
+## Evaluate In 5 Minutes
+
+Run the autonomous multi-agent workflow:
+
+```bash
+npm run demo:agents
+```
+
+Run scenario-based demos:
+
+```bash
+npm run demo:scenario -- normal
+npm run demo:scenario -- red-flag
+npm run test:approval-gate
+```
+
+Run the Docker demo:
+
+```bash
+docker compose up --build
+```
+
+For older Compose installations:
+
+```bash
+docker-compose run --rm careclaw-agents
+```
+
+Run one agent in container mode:
+
+```bash
+AGENT_NAME=payment docker-compose run --rm careclaw-agents
+```
+
 ## Web App Demo
 
 Build the mobile-first PWA shell:
