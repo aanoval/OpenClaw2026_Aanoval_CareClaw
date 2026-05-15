@@ -23,6 +23,11 @@ const aiConfig = {
   model: process.env.SUMOPOD_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini'
 };
 
+const openclawConfig = {
+  agentUrl: process.env.OPENCLAW_AGENT_URL || '',
+  timeoutMs: Number(process.env.OPENCLAW_AGENT_TIMEOUT_MS || 45000)
+};
+
 const dokuConfig = {
   mode: process.env.DOKU_MODE || 'sandbox',
   clientId: process.env.DOKU_CLIENT_ID || '',
@@ -408,6 +413,9 @@ function normalizeIntakeResult(session, result) {
 }
 
 async function runIntakeAi(session, message) {
+  const openclawResult = await runOpenClawIntake(session, message);
+  if (openclawResult) return openclawResult;
+
   if (!aiConfig.apiKey) return fallbackIntakeReply(session, message);
 
   const response = await fetch(`${aiConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -440,6 +448,46 @@ async function runIntakeAi(session, message) {
     return normalizeIntakeResult(session, { ...JSON.parse(content), source: 'sumopod' });
   } catch {
     return fallbackIntakeReply(session, message);
+  }
+}
+
+async function runOpenClawIntake(session, message) {
+  if (!openclawConfig.agentUrl) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), openclawConfig.timeoutMs);
+
+  try {
+    const response = await fetch(openclawConfig.agentUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        session_id: session.id,
+        message,
+        state: {
+          messages: session.messages.slice(-12),
+          collected: session.collected || {},
+          ready_for_payment: Boolean(session.ready_for_payment)
+        }
+      })
+    });
+
+    if (!response.ok) return null;
+    const payload = await response.json();
+    if (!payload?.ok || typeof payload.reply !== 'string') return null;
+
+    return normalizeIntakeResult(session, {
+      reply: payload.reply,
+      ready_for_payment: Boolean(payload.ready_for_payment),
+      missing_fields: Array.isArray(payload.missing_fields) ? payload.missing_fields : [],
+      collected: payload.collected && typeof payload.collected === 'object' ? payload.collected : {},
+      source: 'openclaw'
+    });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

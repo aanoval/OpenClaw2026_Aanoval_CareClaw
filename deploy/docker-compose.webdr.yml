@@ -22,6 +22,8 @@ services:
       CARECLAW_STORE_FILE: /data/careclaw-store.json
       DOCTOR_USERNAME: doctor
       DOCTOR_PASSWORD: careclaw2026
+      OPENCLAW_AGENT_URL: http://careclaw-openclaw:18800/agent
+      OPENCLAW_AGENT_TIMEOUT_MS: 45000
     volumes:
       - careclaw-data:/data
     ports:
@@ -36,6 +38,7 @@ services:
       - .env.openclaw
     environment:
       OPENCLAW_GATEWAY_PORT: 18790
+      OPENCLAW_BRIDGE_PORT: 18800
       OPENCLAW_MODEL_PROVIDER: sumopod
       OPENCLAW_MODEL_ID: gpt-4o-mini
     ports:

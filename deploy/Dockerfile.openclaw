@@ -4,6 +4,7 @@ RUN npm install -g openclaw@latest
 
 WORKDIR /careclaw
 COPY deploy/openclaw-entrypoint.sh /usr/local/bin/careclaw-openclaw
+COPY deploy/openclaw-bridge.mjs /usr/local/bin/openclaw-bridge.mjs
 COPY deploy/openclaw-workspace /workspace-template
 
 RUN chmod +x /usr/local/bin/careclaw-openclaw

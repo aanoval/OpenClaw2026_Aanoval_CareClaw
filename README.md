@@ -379,16 +379,38 @@ docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-age
 
 The patient flow creates DOKU-compatible QRIS or direct Virtual Account instructions and moves the patient into a waiting-for-doctor-chat state. Direct VA banks supported in the public adapter are BNI, BSI, CIMB, Danamon, Permata, BRI, and Mandiri. Real DOKU credentials should be configured only in `.env.doku`.
 
-The same compose file can run an OpenClaw gateway with a CareClaw workspace:
+The same compose file runs an OpenClaw gateway with a CareClaw workspace and a private Docker-network bridge used by the API:
 
 ```bash
 cd deploy
 cp openclaw.env.example .env.openclaw
-docker-compose -f docker-compose.webdr.yml up -d --build careclaw-openclaw
+docker-compose -f docker-compose.webdr.yml up -d --build careclaw-openclaw careclaw-api
 docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-openclaw-check
 ```
 
 `.env.openclaw` must stay private and should provide the OpenAI-compatible provider values for the selected model gateway.
+
+The runtime connection is:
+
+```text
+Patient PWA
+  -> CareClaw API
+  -> OPENCLAW_AGENT_URL
+  -> OpenClaw bridge inside the careclaw-openclaw container
+  -> OpenClaw agent workspace
+  -> patient-facing intake response
+```
+
+The API attempts the OpenClaw bridge first. If the bridge is unavailable or times out, the API falls back to the configured OpenAI-compatible adapter so the demo remains usable.
+
+Relevant environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENCLAW_AGENT_URL` | Internal Docker URL for API-to-OpenClaw intake calls, for example `http://careclaw-openclaw:18800/agent`. |
+| `OPENCLAW_AGENT_TIMEOUT_MS` | API timeout for one OpenClaw intake turn. |
+| `OPENCLAW_BRIDGE_PORT` | Bridge port inside the OpenClaw container. |
+| `OPENCLAW_GATEWAY_PORT` | OpenClaw gateway/control port. |
 
 ## Web App Demo
 
