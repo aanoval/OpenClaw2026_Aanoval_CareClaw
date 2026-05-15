@@ -82,12 +82,11 @@ function renderPaymentResult(payment) {
   if (!payment) return;
   const details = [
     `<strong>${payment.method === 'qris' ? 'QRIS' : 'Virtual Account'}</strong>`,
-    `Invoice: ${payment.invoice_id}`,
-    `Amount: ${payment.currency} ${Number(payment.amount || 0).toLocaleString('id-ID')}`
+    `Nominal: ${payment.currency} ${Number(payment.amount || 0).toLocaleString('id-ID')}`
   ];
-  if (payment.va_number) details.push(`VA: ${payment.bank} ${payment.va_number}`);
-  if (payment.payment_url) details.push(`<a href="${payment.payment_url}" target="_blank" rel="noreferrer">Open payment page</a>`);
-  if (payment.qr_image_url) details.push(`<a href="${payment.qr_image_url}" target="_blank" rel="noreferrer">Open QRIS</a>`);
+  if (payment.va_number) details.push(`Nomor VA ${payment.bank}: ${payment.va_number}`);
+  if (payment.payment_url) details.push(`<a href="${payment.payment_url}" target="_blank" rel="noreferrer">Buka halaman pembayaran</a>`);
+  if (payment.qr_image_url) details.push(`<a href="${payment.qr_image_url}" target="_blank" rel="noreferrer">Buka QRIS</a>`);
   paymentResult.innerHTML = details.map((item) => `<p>${item}</p>`).join('');
   paymentResult.classList.remove('hidden');
   queueText.classList.remove('hidden');
@@ -104,7 +103,7 @@ async function sendPaymentMessage(message) {
   if (payment.payment) {
     renderPaymentResult(payment.payment);
     state.completed = Array.from(new Set([...state.completed, 'payment']));
-    setScene('DOKU payment is waiting', 'The payment agent has created the selected payment instruction and is waiting for verification.');
+    setScene('Payment is waiting', 'Payment instructions are ready and the doctor queue will open after verification.');
     startPaymentPolling();
   }
   renderTimeline();
@@ -119,8 +118,8 @@ function startPaymentPolling() {
       window.clearInterval(paymentPoll);
       paymentPoll = null;
       state.completed = Array.from(new Set([...state.completed, 'payment', 'brief']));
-      briefText.textContent = 'Payment verified. The patient can now enter the doctor chat queue.';
-      setScene('Doctor chat queue unlocked', 'The payment status is verified and the doctor briefing workflow can begin.');
+      briefText.textContent = 'Pembayaran sudah masuk. Saya lanjutkan ke antrean dokter.';
+      setScene('Doctor queue unlocked', 'The payment status is verified and the doctor briefing workflow can begin.');
       renderTimeline();
     }
   }, 30000);
@@ -158,8 +157,8 @@ document.querySelector('#startConsultation').addEventListener('click', async () 
     intakeReadyForPayment = true;
     state.completed.push('symptoms');
     createPayment.classList.remove('hidden');
-    briefText.textContent = 'The intake agent has enough anamnesis to create a payment link and place the patient in the doctor chat queue.';
-    setScene('Anamnesis is ready', 'The intake agent has collected enough history for payment and doctor chat handoff.');
+    briefText.textContent = 'Informasi awal sudah cukup. Silakan lanjut ke pembayaran agar masuk antrean dokter.';
+    setScene('Anamnesis is ready', 'The consultation can move to payment and doctor handoff.');
   } else {
     briefText.textContent = `Intake agent is still collecting: ${(intake.missing_fields || []).join(', ') || 'more clinical context'}.`;
     setScene('Intake agent is asking follow-up questions', 'Answer the next anamnesis question so the doctor receives a structured briefing.');
@@ -178,7 +177,7 @@ createPayment.addEventListener('click', async () => {
   paymentResult.classList.add('hidden');
   briefText.textContent = payment.reply;
   renderPaymentChoices(payment.choices || []);
-  setScene('Payment agent is active', 'The patient chooses a DOKU payment method through the chat-style payment workflow.');
+  setScene('Payment is ready', 'Choose a payment method to continue to the doctor queue.');
   renderTimeline();
 });
 

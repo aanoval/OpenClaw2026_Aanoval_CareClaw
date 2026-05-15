@@ -35,6 +35,18 @@ const dokuConfig = {
   followupSeconds: Number(process.env.PAYMENT_FOLLOWUP_SECONDS || 60)
 };
 
+const supportedVaBanks = ['BNI', 'BSI', 'CIMB', 'DANAMON', 'PERMATA', 'BRI', 'MANDIRI'];
+
+const directVaChannels = {
+  BNI: 'bni-virtual-account',
+  BSI: 'bsm-virtual-account',
+  CIMB: 'cimb-virtual-account',
+  DANAMON: 'danamon-virtual-account',
+  PERMATA: 'permata-virtual-account',
+  BRI: 'bri-virtual-account',
+  MANDIRI: 'mandiri-virtual-account'
+};
+
 const intakeSystemPrompt = `You are the CareClaw Initial Patient Agent.
 
 Your job is proactive medical anamnesis for an online doctor consultation.
@@ -239,7 +251,7 @@ function dokuSignature({ method, path, requestId, timestamp, digest }) {
   return `HMACSHA256=${signature}`;
 }
 
-async function dokuPost(path, payload) {
+async function dokuPostRaw(path, payload) {
   const requestId = randomUUID();
   const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   const digest = dokuDigest(payload);
@@ -257,17 +269,131 @@ async function dokuPost(path, payload) {
     body: JSON.stringify(payload)
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body?.message || body?.error?.message || `DOKU request failed with ${response.status}`);
+  return { ok: response.ok, status: response.status, body };
+}
+
+async function dokuPost(path, payload) {
+  const result = await dokuPostRaw(path, payload);
+  if (!result.ok) {
+    const body = result.body;
+    throw new Error(body?.message || body?.error?.message || `DOKU request failed with ${result.status}`);
   }
-  return body;
+  return result.body;
+}
+
+function directVaBody(bank, invoiceNumber, amount) {
+  const base = {
+    order: {
+      invoice_number: invoiceNumber,
+      amount
+    },
+    customer: {
+      name: 'CareClaw Patient',
+      email: 'patient@example.com'
+    }
+  };
+
+  if (bank === 'BNI') {
+    return {
+      ...base,
+      virtual_account_info: {
+        expired_time: 60,
+        billing_type: 'FIXED',
+        info: 'CareClaw consult',
+        merchant_unique_reference: `${bank}${String(Date.now()).slice(-8)}`.slice(0, 13)
+      }
+    };
+  }
+
+  if (bank === 'DANAMON') {
+    return {
+      ...base,
+      order: {
+        ...base.order,
+        min_amount: 0,
+        max_amount: 0
+      },
+      virtual_account_info: {
+        expired_time: 60,
+        reusable_status: true,
+        billing_type: 'FULL_PAYMENT'
+      },
+      additional_info: {}
+    };
+  }
+
+  if (bank === 'PERMATA') {
+    return {
+      ...base,
+      virtual_account_info: {
+        billing_type: 'FIX_BILL',
+        expired_time: 60,
+        reusable_status: true,
+        ref_info: [
+          { ref_name: 'Product', ref_value: 'CareClaw' },
+          { ref_name: 'Contact', ref_value: 'webdr.id' }
+        ]
+      }
+    };
+  }
+
+  return {
+    ...base,
+    virtual_account_info: {
+      billing_type: 'FIX_BILL',
+      expired_time: 60,
+      reusable_status: false,
+      info1: 'CareClaw consult',
+      info2: 'webdr.id',
+      info3: 'Thank you'
+    }
+  };
+}
+
+async function createDirectVaPayment(session, bank) {
+  const channel = directVaChannels[bank];
+  if (!channel) {
+    return { status: 'unsupported_bank', bank };
+  }
+  const invoiceNumber = `CC${bank}${Date.now()}`.slice(0, 64);
+  const result = await dokuPostRaw(`/${channel}/v2/payment-code`, directVaBody(bank, invoiceNumber, session.amount));
+  if (!result.ok) {
+    return {
+      status: 'doku_error',
+      bank,
+      amount: session.amount,
+      currency: session.currency,
+      http_status: result.status,
+      detail: result.body
+    };
+  }
+  const virtualAccount = result.body?.virtual_account_info || {};
+  return {
+    session_id: session.id,
+    invoice_id: invoiceNumber,
+    provider: 'DOKU',
+    mode: dokuConfig.mode,
+    method: 'virtual_account',
+    channel: 'direct_non_snap',
+    bank,
+    status: 'waiting_for_payment',
+    amount: session.amount,
+    currency: session.currency,
+    va_number: virtualAccount.virtual_account_number || null,
+    how_to_pay_page: virtualAccount.how_to_pay_page || null,
+    expired_date: virtualAccount.expired_date || virtualAccount.expired_date_utc || null,
+    consultation_unlocked: false
+  };
 }
 
 function createPaymentSession({ intakeSessionId, amount, method }) {
   const invoiceId = `CARECLAW-${Date.now()}`;
+  const intakeSession = intakeSessions.get(intakeSessionId || '');
   const session = {
     id: `payment-${randomUUID()}`,
     intake_session_id: intakeSessionId || null,
+    intake_ready: Boolean(intakeSession?.ready_for_payment),
+    intake_context: intakeSession?.collected || {},
     invoice_id: invoiceId,
     amount,
     currency: dokuConfig.currency,
@@ -275,6 +401,10 @@ function createPaymentSession({ intakeSessionId, amount, method }) {
     status: 'method_required',
     consultation_unlocked: false,
     messages: [],
+    agent_events: [
+      'intake.payment_handoff.received',
+      'payment.method.selection.requested'
+    ],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
@@ -306,7 +436,7 @@ function simulatedPaymentResult(req, session, method, bank) {
     method: 'virtual_account',
     bank,
     va_number: `88${String(Date.now()).slice(-10)}`,
-    instructions: `Pay to the ${bank} virtual account number, then CareClaw will verify before doctor chat opens.`
+    instructions: `Bayar Virtual Account bank ${bank} sesuai nominal. Setelah masuk, antrean dokter akan dibuka otomatis.`
   };
 }
 
@@ -316,6 +446,10 @@ async function createDokuPayment(req, session, method, bank) {
   }
   if (!isDokuConfigured()) {
     throw new Error('DOKU credentials are not configured');
+  }
+
+  if (method === 'virtual_account') {
+    return createDirectVaPayment(session, bank);
   }
 
   const payload = {
@@ -336,11 +470,7 @@ async function createDokuPayment(req, session, method, bank) {
   if (dokuConfig.returnUrl) payload.callback_url = dokuConfig.returnUrl;
   if (dokuConfig.notificationUrl) payload.notification_url = dokuConfig.notificationUrl;
 
-  if (method === 'virtual_account') {
-    payload.payment.bank = bank;
-  }
-
-  const path = method === 'qris' ? dokuConfig.qrisPath : dokuConfig.vaPath;
+  const path = dokuConfig.checkoutPath;
   const result = await dokuPost(path, payload);
   return {
     session_id: session.id,
@@ -363,7 +493,7 @@ async function createDokuPayment(req, session, method, bank) {
 function paymentAgentReply(session) {
   if (session.status === 'method_required') {
     return {
-      reply: `Biaya konsultasi adalah ${session.currency} ${session.amount.toLocaleString('id-ID')}. Mau bayar dengan QRIS atau Virtual Account?`,
+      reply: `Biaya konsultasinya ${session.currency} ${session.amount.toLocaleString('id-ID')}. Mau bayar pakai QRIS atau Virtual Account?`,
       choices: [
         { label: 'QRIS', value: 'qris' },
         { label: 'Virtual Account', value: 'virtual_account' }
@@ -372,12 +502,12 @@ function paymentAgentReply(session) {
   }
   if (session.status === 'bank_required') {
     return {
-      reply: 'Pilih bank virtual account yang ingin digunakan.',
-      choices: ['BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA'].map((bank) => ({ label: bank, value: bank }))
+      reply: 'Bisa. Mau pakai bank apa?',
+      choices: supportedVaBanks.map((bank) => ({ label: bank, value: bank }))
     };
   }
   return {
-    reply: 'Pembayaran sedang menunggu verifikasi. Setelah terkonfirmasi, chat dokter akan otomatis dibuka.',
+    reply: 'Saya tunggu konfirmasi pembayarannya. Setelah masuk, antrean dokter akan otomatis dibuka.',
     choices: []
   };
 }
@@ -393,8 +523,9 @@ async function handlePaymentChat(req, session, message) {
         result,
         updated_at: new Date().toISOString()
       });
+      session.agent_events.push('payment.qris.created');
       return {
-        reply: 'QRIS sudah dibuat. Silakan scan QR dan selesaikan pembayaran.',
+        reply: 'Saya buatkan QRIS dulu. Silakan selesaikan pembayaran sesuai nominalnya.',
         payment: result,
         choices: []
       };
@@ -405,12 +536,13 @@ async function handlePaymentChat(req, session, message) {
         status: 'bank_required',
         updated_at: new Date().toISOString()
       });
+      session.agent_events.push('payment.virtual_account.bank_requested');
       return paymentAgentReply(session);
     }
   }
 
   if (session.status === 'bank_required') {
-    const bank = ['BCA', 'BNI', 'BRI', 'MANDIRI', 'PERMATA'].find((item) => normalized.includes(item.toLowerCase()));
+    const bank = supportedVaBanks.find((item) => normalized.includes(item.toLowerCase()));
     if (!bank) {
       return paymentAgentReply(session);
     }
@@ -421,8 +553,11 @@ async function handlePaymentChat(req, session, message) {
       result,
       updated_at: new Date().toISOString()
     });
+    session.agent_events.push('payment.virtual_account.created');
     return {
-      reply: `Virtual Account ${bank} sudah dibuat. Silakan bayar sesuai nominal yang tertera.`,
+      reply: result.va_number
+        ? `Ini nomor Virtual Account ${bank}: ${result.va_number}. Nominalnya ${result.currency} ${Number(result.amount || 0).toLocaleString('id-ID')}. Silakan bayar lewat Virtual Account bank ${bank}.`
+        : `Virtual Account ${bank} sedang dibuat. Silakan lanjutkan pembayaran sesuai instruksi yang muncul.`,
       payment: result,
       choices: []
     };
@@ -615,6 +750,7 @@ const server = http.createServer(async (req, res) => {
         bank: session.bank,
         payment: session.result || null,
         followup,
+        agent_events: session.agent_events,
         consultation_unlocked: session.consultation_unlocked
       });
       return;

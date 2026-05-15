@@ -85,7 +85,7 @@ CareClaw extends OpenClaw into a healthcare-specific orchestrated multi-agent sy
 
 CareClaw uses a DOKU-compatible payment agent for consultation payment workflows.
 
-The Billing and Payment Agent can chat with the patient, offer QRIS or Virtual Account options, create payment instructions, follow up while payment is pending, and unlock doctor access after successful payment verification.
+The Billing and Payment Agent can chat with the patient, offer QRIS or Virtual Account options, create direct Non-SNAP VA instructions for supported banks, follow up while payment is pending, and unlock doctor access after successful payment verification.
 
 Production DOKU credentials and endpoint overrides must be configured outside this public repository.
 
@@ -260,7 +260,7 @@ docker-compose -f docker-compose.webdr.yml up -d --build careclaw-web careclaw-a
 docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-agents-check
 ```
 
-The patient flow creates DOKU-compatible QRIS or Virtual Account instructions and moves the patient into a waiting-for-doctor-chat state. Real DOKU credentials should be configured only in `.env.doku`.
+The patient flow creates DOKU-compatible QRIS or direct Virtual Account instructions and moves the patient into a waiting-for-doctor-chat state. Direct VA banks supported in the public adapter are BNI, BSI, CIMB, Danamon, Permata, BRI, and Mandiri. Real DOKU credentials should be configured only in `.env.doku`.
 
 The same compose file can run an OpenClaw gateway with a CareClaw workspace:
 
