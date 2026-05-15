@@ -24,6 +24,7 @@ services:
       DOCTOR_PASSWORD: careclaw2026
       OPENCLAW_AGENT_URL: http://careclaw-openclaw:18800/agent
       OPENCLAW_AGENT_TIMEOUT_MS: 45000
+      OPENCLAW_INTAKE_PER_TURN: "false"
     volumes:
       - careclaw-data:/data
     ports:

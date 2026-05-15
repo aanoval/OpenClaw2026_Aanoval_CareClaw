@@ -26,7 +26,8 @@ const aiConfig = {
 
 const openclawConfig = {
   agentUrl: process.env.OPENCLAW_AGENT_URL || '',
-  timeoutMs: Number(process.env.OPENCLAW_AGENT_TIMEOUT_MS || 45000)
+  timeoutMs: Number(process.env.OPENCLAW_AGENT_TIMEOUT_MS || 45000),
+  intakePerTurn: process.env.OPENCLAW_INTAKE_PER_TURN === 'true'
 };
 
 const dokuConfig = {
@@ -535,8 +536,10 @@ function normalizeIntakeResult(session, result) {
 }
 
 async function runIntakeAi(session, message) {
-  const openclawResult = await runOpenClawIntake(session, message);
-  if (openclawResult) return openclawResult;
+  if (openclawConfig.intakePerTurn) {
+    const openclawResult = await runOpenClawIntake(session, message);
+    if (openclawResult) return openclawResult;
+  }
 
   if (!aiConfig.apiKey) return fallbackIntakeReply(session, message);
 

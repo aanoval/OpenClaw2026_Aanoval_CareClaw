@@ -163,6 +163,15 @@ GET  /api/agent/tasks/:id/trace
 
 The handoff endpoint makes the OpenClaw-based workflow visible as a task that reaches completion, rather than only as a conversational assistant.
 
+Runtime design:
+
+- patient intake chat is handled by a lightweight direct intake assistant for fast back-and-forth anamnesis
+- OpenClaw is triggered after intake is ready for handoff, not on every chat bubble
+- OpenClaw then runs the autonomous handoff task: symptom structuring, safety decision, payment gate, doctor briefing, and trace output
+- Payment Agent owns the payment method flow after the handoff gate, so payment remains part of the agent workflow instead of being hidden in the UI
+
+Set `OPENCLAW_INTAKE_PER_TURN=true` only when you intentionally want every intake reply to go through the OpenClaw bridge. The default is faster: direct intake first, OpenClaw orchestration after readiness.
+
 ## Goals
 
 - Reduce friction between patients and doctors
