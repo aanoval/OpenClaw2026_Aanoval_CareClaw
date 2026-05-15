@@ -185,6 +185,12 @@ npm install
 npm run demo
 ```
 
+Run the public multi-agent autonomous demo:
+
+```bash
+npm run demo:agents
+```
+
 The demo walks through:
 
 ```text
@@ -196,6 +202,18 @@ doctor chat completion
 doctor final approval
 final delivery
 ```
+
+The multi-agent demo emits a workflow event log and final consultation state so judges can verify autonomous agent execution from intake to doctor-approved delivery.
+
+## Docker Agent Demo
+
+Run the public agent workflow in a container:
+
+```bash
+docker compose up --build
+```
+
+The container runs `npm run demo:agents` by default. The public Docker workflow uses deterministic mock tools and does not require private credentials.
 
 ## Web App Demo
 

@@ -1,0 +1,9 @@
+node_modules
+apps/web/dist
+.git
+.env
+.env.*
+internal
+private
+credentials
+secrets

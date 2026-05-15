@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "demo": "tsx src/demo.ts",
+    "demo:agents": "tsx src/agentDemo.ts",
     "build": "npm run build:types && npm run build:web",
     "build:types": "tsc --noEmit",
     "build:web": "node apps/web/build.mjs",

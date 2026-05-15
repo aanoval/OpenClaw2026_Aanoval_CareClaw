@@ -1,0 +1,6 @@
+services:
+  careclaw-agents:
+    build: .
+    environment:
+      NODE_ENV: production
+    command: npm run demo:agents
