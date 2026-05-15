@@ -176,6 +176,27 @@ examples/
 skills/
 ```
 
+## Demo Command
+
+After dependencies are installed, run the deterministic consultation demo:
+
+```bash
+npm install
+npm run demo
+```
+
+The demo walks through:
+
+```text
+patient intake
+symptom extraction
+mock payment approval
+doctor briefing
+doctor chat completion
+doctor final approval
+final delivery
+```
+
 ## Status
 
 Early hackathon project scaffold.

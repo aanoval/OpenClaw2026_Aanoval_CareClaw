@@ -1,0 +1,13 @@
+{
+  "state": {
+    "consultation_id": "demo-consultation-001",
+    "status": "final_delivery_sent",
+    "symptoms": ["fever", "cough"],
+    "paymentPaid": true,
+    "doctorApproved": true
+  },
+  "delivery": {
+    "status": "sent",
+    "channel": "demo"
+  }
+}
