@@ -74,7 +74,6 @@ Expected demo result:
 For submission materials, see:
 
 - [SUBMISSION.md](SUBMISSION.md)
-- [Demo Video Guide](demo/DEMO_VIDEO.md)
 - [Pitch Deck](pitch/OpenClaw2026_Aanoval_CareClaw.pdf)
 
 ## Overview
