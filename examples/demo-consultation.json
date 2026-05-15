@@ -1,0 +1,9 @@
+{
+  "consultation_id": "demo-consultation-001",
+  "status": "created",
+  "patient": {
+    "display_name": "Demo Patient",
+    "anonymous": true,
+    "input_modes": ["text", "voice_note"]
+  }
+}

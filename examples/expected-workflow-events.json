@@ -1,0 +1,10 @@
+[
+  "consultation.created",
+  "consultation.intake.completed",
+  "consultation.symptoms.extracted",
+  "consultation.payment.paid",
+  "consultation.doctor_brief.ready",
+  "consultation.doctor_chat.ended",
+  "consultation.doctor_review.approved",
+  "consultation.final_delivery.sent"
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "role": "patient",
+    "content": "I have had fever and cough for three days."
+  },
+  {
+    "role": "patient",
+    "content": "The fever is not very high, and I can still breathe normally."
+  }
+]
