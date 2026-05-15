@@ -18,7 +18,7 @@ cat > "$OPENCLAW_HOME_DIR/openclaw.json" <<EOF
     "providers": {
       "${OPENCLAW_MODEL_PROVIDER}": {
         "baseUrl": "${SUMOPOD_BASE_URL:-https://ai.sumopod.com/v1}",
-        "apiKey": "SUMOPOD_API_KEY",
+        "apiKey": "${SUMOPOD_API_KEY:-}",
         "api": "openai-completions",
         "models": [
           {
