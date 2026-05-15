@@ -20,6 +20,8 @@ const doctorPanel = document.querySelector('#doctorPanel');
 const sceneTitle = document.querySelector('#sceneTitle');
 const sceneText = document.querySelector('#sceneText');
 const briefText = document.querySelector('#briefText');
+const paymentLink = document.querySelector('#paymentLink');
+const queueText = document.querySelector('#queueText');
 
 function renderTimeline() {
   timeline.innerHTML = steps
@@ -57,11 +59,15 @@ document.querySelector('#startConsultation').addEventListener('click', async () 
   state.completed = ['intake', 'symptoms'];
 
   const payment = await api('/payment/mock', { method: 'POST', body: '{}' });
-  if (payment.status === 'paid') state.completed.push('payment', 'brief');
+  if (payment.payment_url) {
+    state.completed.push('payment');
+    paymentLink.href = payment.payment_url;
+    paymentLink.classList.remove('hidden');
+    queueText.classList.remove('hidden');
+  }
 
-  const consultation = await api('/consultation/demo');
-  briefText.textContent = consultation.brief;
-  setScene('Doctor brief is ready', 'Payment is complete and the doctor can review the structured consultation brief.');
+  briefText.textContent = `Payment link created with ${payment.provider}. Complete payment to enter the doctor chat queue.`;
+  setScene('DOKU payment link is ready', 'The patient is waiting for payment verification before the doctor chat opens.');
   renderTimeline();
 });
 

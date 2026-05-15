@@ -219,6 +219,20 @@ textarea {
   margin-top: auto;
 }
 
+.payment-link {
+  display: inline-flex;
+  margin-top: 12px;
+  color: #0d6f55;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.queue-text {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 @media (max-width: 520px) {
   .desktop-shell {
     padding: 0;

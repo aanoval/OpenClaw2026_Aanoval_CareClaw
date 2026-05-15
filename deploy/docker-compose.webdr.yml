@@ -1,0 +1,29 @@
+services:
+  careclaw-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8070:80"
+
+  careclaw-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 8050
+      DOCTOR_USERNAME: doctor
+      DOCTOR_PASSWORD: careclaw2026
+    ports:
+      - "127.0.0.1:8050:8050"
+
+  careclaw-agents-check:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    profiles: ["check"]
+    command: npm run demo:agents

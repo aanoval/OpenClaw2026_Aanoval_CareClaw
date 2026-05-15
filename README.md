@@ -249,6 +249,18 @@ Run one agent in container mode:
 AGENT_NAME=payment docker-compose run --rm careclaw-agents
 ```
 
+## VPS Docker Deployment
+
+The `deploy/docker-compose.webdr.yml` file runs the public patient PWA and API behind a host reverse proxy:
+
+```bash
+cd deploy
+docker-compose -f docker-compose.webdr.yml up -d --build careclaw-web careclaw-api
+docker-compose -f docker-compose.webdr.yml --profile check run --rm careclaw-agents-check
+```
+
+The patient flow creates a DOKU-compatible demo payment link and moves the patient into a waiting-for-doctor-chat state. Real DOKU credentials should be configured outside this public repository.
+
 ## Web App Demo
 
 Build the mobile-first PWA shell:

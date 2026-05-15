@@ -24,6 +24,14 @@ const demoConsultation = {
   }
 };
 
+function absoluteUrl(req, path) {
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const proto = typeof forwardedProto === 'string' ? forwardedProto : 'https';
+  const hostHeader = req.headers['x-forwarded-host'] || req.headers.host || 'webdr.id';
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  return `${proto}://${host}${path}`;
+}
+
 function sendJson(res, status, body) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
@@ -94,12 +102,50 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/payment/mock') {
+      const invoiceId = `DOKU-DEMO-${Date.now()}`;
       sendJson(res, 200, {
-        invoice_id: `INV-${Date.now()}`,
-        status: 'paid',
-        consultation_unlocked: true,
-        next_event: 'consultation.doctor_brief.requested'
+        invoice_id: invoiceId,
+        provider: 'DOKU MCP demo',
+        status: 'payment_link_created',
+        payment_url: absoluteUrl(req, `/api/payment/demo/${invoiceId}`),
+        consultation_unlocked: false,
+        patient_state: 'waiting_for_payment_then_doctor_chat',
+        next_event: 'consultation.payment_link.created'
       });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/payment/demo/')) {
+      const invoiceId = url.pathname.split('/').pop() || 'DOKU-DEMO';
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store'
+      });
+      res.end(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DOKU Demo Payment</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Inter, system-ui, sans-serif; background: #fff4df; color: #17211b; }
+      main { width: min(92vw, 420px); border: 1px solid #1d2b2222; border-radius: 18px; padding: 24px; background: white; box-shadow: 0 20px 70px #17211b22; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      p { line-height: 1.5; }
+      .invoice { padding: 12px; border-radius: 12px; background: #f4f7f0; font-weight: 700; }
+      a { display: inline-flex; margin-top: 14px; color: #0c6f55; font-weight: 800; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>DOKU Demo Payment Link</h1>
+      <p>This public demo shows the DOKU payment handoff point. Real payment credentials are configured outside the public repository.</p>
+      <p class="invoice">${invoiceId}</p>
+      <p>After payment verification, CareClaw routes the patient to the doctor chat queue.</p>
+      <a href="/">Back to CareClaw</a>
+    </main>
+  </body>
+</html>`);
       return;
     }
 
