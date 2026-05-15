@@ -1,10 +1,63 @@
 # CareClaw
 
-CareClaw is an OpenClaw-based multi-agent healthcare communication system designed to make doctor-patient communication more meaningful, efficient, and clinically structured.
+CareClaw is an autonomous multi-agent healthcare workflow system for OpenClaw Agenthon Indonesia 2026.
 
-It does not replace doctors. It coordinates specialized agents that help transform raw patient conversations into structured workflows for medical consultations, while keeping doctors as the final decision makers.
+It coordinates patient intake, symptom structuring, payment gating, doctor briefing, SOAP generation, patient education, and doctor-approved final delivery.
+
+It does not replace doctors. AI handles the workflow; doctors make the medical decisions.
 
 > Better doctor-patient communication through coordinated healthcare agents.
+
+## Judge Quick Start
+
+Run the autonomous multi-agent workflow:
+
+```bash
+npm install
+npm run demo:agents
+```
+
+Run scenario-based demos:
+
+```bash
+npm run demo:scenario -- normal
+npm run demo:scenario -- red-flag
+npm run test:approval-gate
+```
+
+Run the Docker demo:
+
+```bash
+docker compose up --build
+```
+
+Build the patient PWA:
+
+```bash
+npm run build
+```
+
+Expected demo result:
+
+```json
+{
+  "workflow": "careclaw-public-agent-demo",
+  "final_status": "final_delivery_sent",
+  "doctor_approved": true,
+  "delivered": true,
+  "events": [
+    "orchestrator.next_event.selected",
+    "intake.completed",
+    "symptoms.extracted",
+    "payment.paid",
+    "doctor.brief.ready",
+    "soap.created",
+    "patient_education.created",
+    "doctor.approved",
+    "final.sent"
+  ]
+}
+```
 
 ## Overview
 
@@ -25,6 +78,21 @@ Patient Web Chat
 
 The system is designed for online consultation workflows where patients need a fast path to care, and doctors need structured, relevant, and reviewable information.
 
+## Why This Is Not a Basic Chatbot
+
+CareClaw is not a single chat wrapper around an LLM. It is a workflow-oriented agent system with separate responsibilities, explicit state transitions, safety gates, and tool-backed actions.
+
+The system can:
+
+- collect patient intake
+- structure symptoms and red flags
+- decide whether a case needs urgent doctor review
+- block doctor access until payment is verified
+- prepare a doctor briefing
+- draft SOAP and patient education after consultation
+- prevent final delivery until doctor approval
+- keep payment, doctor chat, and final delivery as separate workflow states
+
 ## Goals
 
 - Reduce friction between patients and doctors
@@ -33,6 +101,21 @@ The system is designed for online consultation workflows where patients need a f
 - Preserve doctor authority in clinical decisions
 - Demonstrate realistic healthcare agent orchestration with OpenClaw
 - Provide clear boundaries between assistance, drafting, and medical decision-making
+
+## Autonomous Agent Behaviors
+
+CareClaw demonstrates autonomous behavior through decision points rather than a fixed chat transcript.
+
+| Decision point | Agent behavior |
+| --- | --- |
+| New patient message | Orchestrator routes the event to intake and clinical structuring. |
+| Missing clinical context | Intake agent asks the next useful question instead of moving forward too early. |
+| Red flags detected | Symptom extraction marks urgent review and doctor-facing safety context. |
+| Payment not verified | Payment agent keeps doctor access locked and follows up while pending. |
+| Payment verified | Consultation is unlocked and routed into the doctor queue. |
+| Doctor chat ended | Post-consultation orchestrator triggers SOAP, education, and prescription-draft agents. |
+| Doctor approval missing | Final delivery remains blocked. |
+| Doctor approval received | Final delivery agent sends the approved patient-facing result. |
 
 ## Core Agents
 
@@ -54,6 +137,16 @@ The system is designed for online consultation workflows where patients need a f
 CareClaw agents can collect, structure, summarize, draft, and educate.
 
 Only licensed doctors can diagnose, prescribe, approve final medical instructions, or make clinical decisions.
+
+## Clinical Safety & Red-Flag Escalation
+
+CareClaw keeps clinical safety explicit:
+
+- symptom extraction records severity and red flags
+- red-flag cases are routed to urgent doctor review
+- prescription output is draft-only and blocked from patient delivery
+- final patient instructions require doctor approval
+- the public demo includes `npm run demo:scenario -- red-flag` to show escalation behavior
 
 ## Why Multi-Agent Instead of a Single Chatbot?
 
@@ -87,7 +180,7 @@ CareClaw uses a DOKU-compatible payment agent for consultation payment workflows
 
 The Billing and Payment Agent can chat with the patient, offer QRIS or Virtual Account options, create direct Non-SNAP VA instructions for supported banks, follow up while payment is pending, and unlock doctor access after successful payment verification.
 
-Production DOKU credentials and endpoint overrides must be configured outside this public repository.
+The public agent demo uses deterministic mock payment for judge reproducibility. The deployed API and production adapter support DOKU-compatible QRIS and Virtual Account flows through private credentials configured outside this public repository.
 
 ## Key Philosophy
 
@@ -176,7 +269,7 @@ examples/
 skills/
 ```
 
-## Demo Command
+## Demo Commands
 
 After dependencies are installed, run the deterministic consultation demo:
 
@@ -215,7 +308,7 @@ docker compose up --build
 
 The container runs `npm run demo:agents` by default. The public Docker workflow uses deterministic mock tools and does not require private credentials.
 
-## Evaluate In 5 Minutes
+## Additional Evaluation Commands
 
 Run the autonomous multi-agent workflow:
 
@@ -292,13 +385,25 @@ The API listens on `127.0.0.1:8050` by default and exposes:
 
 ```text
 GET  /health
+POST /auth/register
+POST /auth/login
+GET  /auth/me
+GET  /history
 POST /login
 GET  /consultation/demo
 POST /consultation/start
+POST /intake/start
+POST /intake/message
 POST /payment/chat/start
 POST /payment/chat/message
 GET  /payment/chat/status/:sessionId
 POST /payment/mock
+GET  /doctor/queue
+POST /doctor/consultations/:id/claim
+POST /doctor/consultations/:id/message
+POST /doctor/consultations/:id/end
+GET  /patient/consultations/:id
+POST /patient/consultations/:id/message
 POST /doctor/approve
 ```
 
@@ -306,9 +411,7 @@ Doctor login is intentionally minimal for the hackathon demo and can be changed 
 
 ## Status
 
-Early hackathon project scaffold.
-
-The current repository defines product direction, agent responsibilities, workflow state, safety boundaries, and implementation-ready documentation.
+Hackathon-ready autonomous multi-agent prototype with deterministic public demos, Docker reproducibility, payment mock adapter, DOKU-compatible payment integration, clinical safety gates, patient PWA, doctor queue, and doctor approval workflow.
 
 ## License
 
