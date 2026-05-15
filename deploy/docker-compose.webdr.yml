@@ -29,11 +29,11 @@ services:
     env_file:
       - .env.openclaw
     environment:
-      OPENCLAW_GATEWAY_PORT: 18789
+      OPENCLAW_GATEWAY_PORT: 18790
       OPENCLAW_MODEL_PROVIDER: sumopod
       OPENCLAW_MODEL_ID: gpt-4o-mini
     ports:
-      - "127.0.0.1:18789:18789"
+      - "127.0.0.1:18790:18790"
 
   careclaw-agents-check:
     build:
