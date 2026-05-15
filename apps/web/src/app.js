@@ -51,6 +51,10 @@ const loginForm = document.querySelector('#loginForm');
 const registerForm = document.querySelector('#registerForm');
 const historyGate = document.querySelector('#historyGate');
 const historyList = document.querySelector('#historyList');
+const patientSendButton = document.querySelector('#startConsultation');
+const doctorSendButton = document.querySelector('#sendDoctorMessage');
+let patientTypingBubble = null;
+let doctorTypingBubble = null;
 
 function loadPatientState() {
   try {
@@ -109,6 +113,31 @@ function addChatMessage(role, text, persist = true) {
     state.messages.push({ role, text, at: new Date().toISOString() });
     savePatientState();
   }
+}
+
+function createTypingBubble(role = 'agent') {
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${role} typing-bubble`;
+  bubble.setAttribute('aria-label', 'Sedang diproses');
+  bubble.innerHTML = '<span></span><span></span><span></span>';
+  return bubble;
+}
+
+function showTyping(target = chatLog, role = 'agent') {
+  const bubble = createTypingBubble(role);
+  target.appendChild(bubble);
+  target.scrollTop = target.scrollHeight;
+  return bubble;
+}
+
+function removeTyping(bubble) {
+  if (bubble?.parentElement) bubble.parentElement.removeChild(bubble);
+}
+
+function setButtonBusy(button, busy) {
+  if (!button) return;
+  button.disabled = busy;
+  button.classList.toggle('is-busy', busy);
 }
 
 function restorePatientChat() {
@@ -178,11 +207,19 @@ async function sendPatientMessage() {
   if (state.consultationId && ['doctor', 'done'].includes(state.stage)) {
     addChatMessage('patient', message);
     patientMessage.value = '';
-    const consultation = await api(`/patient/consultations/${state.consultationId}/message`, {
-      method: 'POST',
-      body: JSON.stringify({ message })
-    });
-    renderPatientConsultation(consultation);
+    setButtonBusy(patientSendButton, true);
+    patientTypingBubble = showTyping(chatLog, 'agent');
+    try {
+      const consultation = await api(`/patient/consultations/${state.consultationId}/message`, {
+        method: 'POST',
+        body: JSON.stringify({ message })
+      });
+      renderPatientConsultation(consultation);
+    } finally {
+      removeTyping(patientTypingBubble);
+      patientTypingBubble = null;
+      setButtonBusy(patientSendButton, false);
+    }
     return;
   }
 
@@ -190,55 +227,77 @@ async function sendPatientMessage() {
   addChatMessage('patient', message);
   patientMessage.value = '';
   renderChips(quickChoices, [], () => {});
+  setButtonBusy(patientSendButton, true);
+  patientTypingBubble = showTyping(chatLog, 'agent');
 
-  const intake = await api('/intake/message', {
-    method: 'POST',
-    body: JSON.stringify({ session_id: state.intakeSessionId, message })
-  });
-  addChatMessage('agent', intake.reply);
-  renderChips(quickChoices, intake.choices || [], (value) => {
-    patientMessage.value = value;
-    patientMessage.focus();
-  });
+  try {
+    const intake = await api('/intake/message', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: state.intakeSessionId, message })
+    });
+    removeTyping(patientTypingBubble);
+    patientTypingBubble = null;
+    addChatMessage('agent', intake.reply);
+    renderChips(quickChoices, intake.choices || [], (value) => {
+      patientMessage.value = value;
+      patientMessage.focus();
+    });
 
-  if (intake.ready_for_payment) {
-    state.intakeReadyForPayment = true;
-    setStage('pay');
-    setScene('Siap bayar', 'Setelah bayar, Anda masuk antrean dokter.');
-  } else {
-    setStage('chat');
-    setScene('Lanjut jawab', 'Satu pertanyaan dulu agar tetap mudah.');
+    if (intake.ready_for_payment) {
+      state.intakeReadyForPayment = true;
+      setStage('pay');
+      setScene('Siap bayar', 'Lanjutkan agar masuk antrean dokter.');
+    } else {
+      setStage('chat');
+      setScene('Lanjut jawab', 'Saya bantu rangkum pelan-pelan.');
+    }
+  } finally {
+    removeTyping(patientTypingBubble);
+    patientTypingBubble = null;
+    setButtonBusy(patientSendButton, false);
   }
 }
 
 async function createPaymentSession() {
   if (!state.intakeReadyForPayment) return;
-  const payment = await api('/payment/chat/start', {
-    method: 'POST',
-    headers: patientHeaders(),
-    body: JSON.stringify({ intake_session_id: state.intakeSessionId, guest_id: state.guestId })
-  });
-  state.paymentSessionId = payment.session_id;
-  savePatientState();
-  setScene('Pilih pembayaran', 'Pilih cara bayar yang paling mudah.');
-  renderChips(paymentChoices, payment.choices || [], sendPaymentMessage);
-  renderPatient();
+  patientTypingBubble = showTyping(chatLog, 'agent');
+  try {
+    const payment = await api('/payment/chat/start', {
+      method: 'POST',
+      headers: patientHeaders(),
+      body: JSON.stringify({ intake_session_id: state.intakeSessionId, guest_id: state.guestId })
+    });
+    state.paymentSessionId = payment.session_id;
+    savePatientState();
+    setScene('Pilih pembayaran', 'Pilih cara bayar yang paling mudah.');
+    renderChips(paymentChoices, payment.choices || [], sendPaymentMessage);
+    renderPatient();
+  } finally {
+    removeTyping(patientTypingBubble);
+    patientTypingBubble = null;
+  }
 }
 
 async function sendPaymentMessage(message) {
   if (!state.paymentSessionId) return;
-  const payment = await api('/payment/chat/message', {
-    method: 'POST',
-    body: JSON.stringify({ session_id: state.paymentSessionId, message })
-  });
-  renderChips(paymentChoices, payment.choices || [], sendPaymentMessage);
-  if (payment.reply) addChatMessage('agent', payment.reply);
-  if (payment.payment) {
-    state.payment = payment.payment;
-    setStage('waiting');
-    renderPaymentResult(payment.payment);
-    setScene('Menunggu dokter', 'Kami cek pembayaran otomatis.');
-    startPaymentPolling();
+  patientTypingBubble = showTyping(chatLog, 'agent');
+  try {
+    const payment = await api('/payment/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: state.paymentSessionId, message })
+    });
+    renderChips(paymentChoices, payment.choices || [], sendPaymentMessage);
+    if (payment.reply) addChatMessage('agent', payment.reply);
+    if (payment.payment) {
+      state.payment = payment.payment;
+      setStage('waiting');
+      renderPaymentResult(payment.payment);
+      setScene('Menunggu dokter', 'Pembayaran dicek otomatis.');
+      startPaymentPolling();
+    }
+  } finally {
+    removeTyping(patientTypingBubble);
+    patientTypingBubble = null;
   }
 }
 
@@ -297,17 +356,17 @@ function switchTab(tab) {
 
 function renderDoctorPatientState() {
   if (state.stage === 'doctor') {
-    doctorPatientState.innerHTML = '<strong>Menunggu dokter</strong><span>Anda akan lanjut chat di tab Chat.</span>';
+    doctorPatientState.innerHTML = '<strong><span class="inline-icon doctor-icon"></span>Menunggu dokter</strong><span>Anda akan lanjut chat di tab Chat.</span>';
   } else if (state.stage === 'done') {
-    doctorPatientState.innerHTML = '<strong>Konsultasi selesai</strong><span>Login untuk menyimpan dan melihat riwayat.</span>';
+    doctorPatientState.innerHTML = '<strong><span class="inline-icon history-icon"></span>Konsultasi selesai</strong><span>Login untuk menyimpan dan melihat riwayat.</span>';
   } else {
-    doctorPatientState.innerHTML = '<strong>Belum ada dokter</strong><span>Selesaikan chat awal dan pembayaran dulu.</span>';
+    doctorPatientState.innerHTML = '<strong><span class="inline-icon chat-icon"></span>Belum ada dokter</strong><span>Selesaikan chat awal dan pembayaran dulu.</span>';
   }
 }
 
 function renderAccount() {
   if (state.user) {
-    accountCard.innerHTML = `<strong>${state.user.email}</strong><span>Riwayat Anda tersimpan di akun ini.</span><button id="patientLogout" type="button" class="secondary">Keluar</button>`;
+    accountCard.innerHTML = `<strong><span class="inline-icon account-icon"></span>${state.user.email}</strong><span>Riwayat Anda tersimpan di akun ini.</span><button id="patientLogout" type="button" class="secondary">Keluar</button>`;
     authForms.classList.add('hidden');
     document.querySelector('#patientLogout').addEventListener('click', () => {
       localStorage.removeItem(PATIENT_TOKEN_KEY);
@@ -317,7 +376,7 @@ function renderAccount() {
       renderPatient();
     });
   } else {
-    accountCard.innerHTML = '<strong>Masih sebagai tamu</strong><span>Tamu hanya bisa punya satu konsultasi awal. Daftar untuk riwayat dan konsultasi berikutnya.</span>';
+    accountCard.innerHTML = '<strong><span class="inline-icon account-icon"></span>Masih sebagai tamu</strong><span>Tamu hanya bisa punya satu konsultasi awal. Daftar untuk riwayat dan konsultasi berikutnya.</span>';
     authForms.classList.remove('hidden');
   }
 }
@@ -337,7 +396,7 @@ function renderHistory() {
     ...history.intake.map((item) => ({ type: 'Chat', ...item }))
   ].sort((a, b) => Date.parse(b.updated_at || b.created_at || 0) - Date.parse(a.updated_at || a.created_at || 0));
   historyList.innerHTML = items.length
-    ? items.map((item) => `<div class="history-item"><strong>${item.type}</strong><span>${item.status || 'tersimpan'}</span><span>${item.title || item.invoice_id || item.id}</span></div>`).join('')
+    ? items.map((item) => `<div class="history-item"><strong><span class="inline-icon history-icon"></span>${item.type}</strong><span>${item.status || 'tersimpan'}</span><span>${item.title || item.invoice_id || item.id}</span></div>`).join('')
     : '<div class="empty-state"><strong>Belum ada riwayat</strong><span>Riwayat muncul setelah Anda mulai konsultasi.</span></div>';
 }
 
@@ -470,12 +529,20 @@ async function sendDoctorMessage() {
   const message = doctorMessage.value.trim();
   if (!message || !activeDoctorCase) return;
   doctorMessage.value = '';
-  const consultation = await api(`/doctor/consultations/${activeDoctorCase}/message`, {
-    method: 'POST',
-    headers: doctorHeaders(),
-    body: JSON.stringify({ message })
-  });
-  renderDoctorCase(consultation);
+  setButtonBusy(doctorSendButton, true);
+  doctorTypingBubble = showTyping(doctorChatLog, 'agent');
+  try {
+    const consultation = await api(`/doctor/consultations/${activeDoctorCase}/message`, {
+      method: 'POST',
+      headers: doctorHeaders(),
+      body: JSON.stringify({ message })
+    });
+    renderDoctorCase(consultation);
+  } finally {
+    removeTyping(doctorTypingBubble);
+    doctorTypingBubble = null;
+    setButtonBusy(doctorSendButton, false);
+  }
 }
 
 async function endConsultation() {
@@ -521,12 +588,8 @@ patientNav.querySelectorAll('button').forEach((button) => {
   button.addEventListener('click', () => switchTab(button.dataset.tab));
 });
 
-document.querySelector('#startConsultation').addEventListener('click', () => sendPatientMessage().catch(showError));
+patientSendButton.addEventListener('click', () => sendPatientMessage().catch(showError));
 document.querySelector('#createPayment').addEventListener('click', () => createPaymentSession().catch(showError));
-document.querySelector('#mockVoice').addEventListener('click', () => {
-  patientMessage.value = 'Saya demam dan batuk sejak 3 hari, badan lemas, tidak sesak.';
-  setScene('Voice siap', 'Kirim kalau transkrip sudah benar.');
-});
 
 patientMessage.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey) {

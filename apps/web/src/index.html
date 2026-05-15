@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#fff4df" />
+    <meta name="theme-color" content="#e9f7ff" />
     <meta name="description" content="CareClaw helps patients prepare a doctor consultation from their phone." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
@@ -20,9 +20,10 @@
           <div class="status-pill" id="stagePill">Tamu</div>
         </header>
 
-        <section class="mini-status" id="miniStatus">
+        <section class="mini-status" id="miniStatus" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
           <strong id="sceneTitle">Mulai chat</strong>
-          <span id="sceneText">Jawab singkat saja. Dokter akan melihat ringkasannya.</span>
+          <span id="sceneText">Jawab singkat saja.</span>
         </section>
 
         <section class="screen patient-screen" id="patientPanel">
@@ -33,10 +34,12 @@
             <div id="paymentResult" class="payment-result hidden"></div>
             <div class="composer">
               <textarea id="patientMessage" placeholder="Tulis keluhan Anda..."></textarea>
-              <button id="startConsultation" type="button">Kirim</button>
+              <button id="startConsultation" type="button" aria-label="Kirim pesan">
+                <span class="button-icon send-icon" aria-hidden="true"></span>
+                <span>Kirim</span>
+              </button>
             </div>
             <div class="compact-actions">
-              <button id="mockVoice" type="button" class="secondary">Voice</button>
               <button id="createPayment" type="button" class="payment-button hidden">Bayar</button>
             </div>
           </section>
@@ -94,7 +97,10 @@
                 <p class="label">Antrian</p>
                 <h2 id="doctorTitle">Pasien menunggu</h2>
               </div>
-              <button id="refreshQueue" type="button" class="secondary">Refresh</button>
+              <button id="refreshQueue" type="button" class="secondary">
+                <span class="button-icon refresh-icon" aria-hidden="true"></span>
+                <span>Refresh</span>
+              </button>
             </div>
             <div id="doctorQueue" class="doctor-queue"></div>
             <div id="doctorCase" class="doctor-case hidden">
@@ -103,7 +109,10 @@
               <div id="doctorSuggestions" class="doctor-suggestions"></div>
               <textarea id="doctorMessage" placeholder="Tulis pesan dokter ke pasien..."></textarea>
               <div class="actions">
-                <button id="sendDoctorMessage" type="button">Kirim</button>
+                <button id="sendDoctorMessage" type="button">
+                  <span class="button-icon send-icon" aria-hidden="true"></span>
+                  <span>Kirim</span>
+                </button>
                 <button id="endConsultation" type="button" class="secondary">Selesai</button>
               </div>
             </div>
@@ -111,10 +120,10 @@
         </section>
 
         <nav class="bottom-nav" id="patientNav" aria-label="Navigasi pasien">
-          <button type="button" data-tab="chat" class="active">Chat</button>
-          <button type="button" data-tab="doctor">Dokter</button>
-          <button type="button" data-tab="history">Riwayat</button>
-          <button type="button" data-tab="account">Akun</button>
+          <button type="button" data-tab="chat" class="active"><span class="nav-icon chat-icon" aria-hidden="true"></span><span>Chat</span></button>
+          <button type="button" data-tab="doctor"><span class="nav-icon doctor-icon" aria-hidden="true"></span><span>Dokter</span></button>
+          <button type="button" data-tab="history"><span class="nav-icon history-icon" aria-hidden="true"></span><span>Riwayat</span></button>
+          <button type="button" data-tab="account"><span class="nav-icon account-icon" aria-hidden="true"></span><span>Akun</span></button>
         </nav>
       </main>
     </div>
