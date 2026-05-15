@@ -541,44 +541,9 @@ function normalizeIntakeResult(session, result) {
 }
 
 async function runIntakeAi(session, message) {
-  if (openclawConfig.intakePerTurn) {
-    const openclawResult = await runOpenClawIntake(session, message);
-    if (openclawResult) return openclawResult;
-  }
-
-  if (!aiConfig.apiKey) return fallbackIntakeReply(session, message);
-
-  const response = await fetch(`${aiConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${aiConfig.apiKey}`,
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: aiConfig.model,
-      temperature: 0.35,
-      max_tokens: 500,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: intakeSystemPrompt },
-        ...session.messages.slice(-12)
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    return fallbackIntakeReply(session, message);
-  }
-
-  const payload = await response.json();
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== 'string') return fallbackIntakeReply(session, message);
-
-  try {
-    return normalizeIntakeResult(session, { ...JSON.parse(content), source: 'sumopod' });
-  } catch {
-    return fallbackIntakeReply(session, message);
-  }
+  const openclawResult = await runOpenClawIntake(session, message);
+  if (openclawResult) return openclawResult;
+  return fallbackIntakeReply(session, message);
 }
 
 async function runOpenClawIntake(session, message) {

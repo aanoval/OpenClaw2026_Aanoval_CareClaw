@@ -165,13 +165,13 @@ The handoff endpoint makes the OpenClaw-based workflow visible as a task that re
 
 Runtime design:
 
-- patient intake chat is handled by a lightweight direct intake assistant for fast back-and-forth anamnesis
-- OpenClaw is triggered after intake is ready for handoff, not on every chat bubble
+- patient intake chat is handled by the OpenClaw intake bridge, not by a separate manual LLM chat-completion fallback
+- OpenClaw remains the runtime for every intake turn and for the final handoff orchestration
 - after the configured turn limit, default `INTAKE_HANDOFF_TURN_LIMIT=10`, the system forces an intake handoff check instead of letting anamnesis run forever
 - OpenClaw then runs the autonomous handoff task: symptom structuring, safety decision, payment gate, doctor briefing, and trace output
 - Payment Agent owns the payment method flow after the handoff gate, so payment remains part of the agent workflow instead of being hidden in the UI
 
-Set `OPENCLAW_INTAKE_PER_TURN=true` only when you intentionally want every intake reply to go through the OpenClaw bridge. The default is faster: direct intake first, OpenClaw orchestration after readiness.
+If the OpenClaw bridge is unavailable, the API can return a deterministic local fallback message, but it does not fall back to a separate direct LLM API call for intake.
 
 ## Goals
 
