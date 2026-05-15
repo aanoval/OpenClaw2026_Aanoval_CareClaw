@@ -12,6 +12,8 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.api
     restart: unless-stopped
+    env_file:
+      - .env.openclaw
     environment:
       NODE_ENV: production
       API_HOST: 0.0.0.0

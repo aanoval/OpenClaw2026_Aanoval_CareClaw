@@ -9,6 +9,50 @@ const doctorLogin = {
   password: process.env.DOCTOR_PASSWORD || 'careclaw2026'
 };
 
+const intakeSessions = new Map();
+const aiConfig = {
+  apiKey: process.env.SUMOPOD_API_KEY || process.env.OPENAI_API_KEY || '',
+  baseUrl: process.env.SUMOPOD_BASE_URL || process.env.OPENAI_BASE_URL || 'https://ai.sumopod.com/v1',
+  model: process.env.SUMOPOD_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini'
+};
+
+const intakeSystemPrompt = `You are the CareClaw Initial Patient Agent.
+
+Your job is proactive medical anamnesis for an online doctor consultation.
+You are not a doctor and must not diagnose or prescribe.
+
+Ask one concise follow-up question at a time until the consultation is ready for payment/doctor chat.
+Collect:
+- chief complaint
+- onset and duration
+- symptom details
+- severity
+- associated symptoms
+- red flags
+- allergies
+- current medication
+- pregnancy status when relevant
+- chronic disease history
+- age range if not known
+
+Respond in the same language the patient uses.
+Return strict JSON only:
+{
+  "reply": "patient-facing assistant message",
+  "ready_for_payment": false,
+  "missing_fields": ["duration"],
+  "collected": {
+    "chief_complaint": "",
+    "duration": "",
+    "severity": "",
+    "associated_symptoms": [],
+    "red_flags": [],
+    "allergies": "",
+    "current_medication": "",
+    "chronic_history": ""
+  }
+}`;
+
 const demoConsultation = {
   id: 'demo-consultation-001',
   status: 'doctor_review_ready',
@@ -39,6 +83,85 @@ function sendJson(res, status, body) {
     'cache-control': 'no-store'
   });
   res.end(payload);
+}
+
+function fallbackIntakeReply(session, message) {
+  const lower = message.toLowerCase();
+  const missing = [];
+  if (!/\d+\s*(hari|day|days|jam|hour|hours|minggu|week|weeks)/i.test(message)) missing.push('duration');
+  if (!/(nyeri dada|sesak|shortness|breath|chest pain|pingsan|confusion)/i.test(message)) missing.push('red_flags');
+  if (!/(alergi|allerg)/i.test(message)) missing.push('allergies');
+  if (!/(obat|medicine|medication|paracetamol|ibuprofen)/i.test(message)) missing.push('current_medication');
+  const ready = session.messages.filter((item) => item.role === 'user').length >= 3 || missing.length <= 1;
+  return {
+    reply: ready
+      ? 'Terima kasih. Informasi awal sudah cukup untuk membuat link pembayaran dan masuk antrean chat dokter.'
+      : lower.includes('demam') || lower.includes('fever')
+        ? 'Sejak kapan demamnya, berapa suhu tertinggi, dan apakah ada batuk, sesak napas, nyeri dada, atau lemas berat?'
+        : 'Boleh ceritakan sejak kapan keluhan ini mulai, seberapa berat, dan apakah ada gejala bahaya seperti sesak napas, nyeri dada, pingsan, atau kebingungan?',
+    ready_for_payment: ready,
+    missing_fields: ready ? [] : missing.slice(0, 3),
+    collected: {
+      chief_complaint: message,
+      duration: '',
+      severity: '',
+      associated_symptoms: [],
+      red_flags: [],
+      allergies: '',
+      current_medication: '',
+      chronic_history: ''
+    },
+    source: 'fallback'
+  };
+}
+
+async function runIntakeAi(session, message) {
+  if (!aiConfig.apiKey) return fallbackIntakeReply(session, message);
+
+  const response = await fetch(`${aiConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${aiConfig.apiKey}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: aiConfig.model,
+      temperature: 0.35,
+      max_tokens: 500,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: intakeSystemPrompt },
+        ...session.messages.slice(-12)
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    return fallbackIntakeReply(session, message);
+  }
+
+  const payload = await response.json();
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content !== 'string') return fallbackIntakeReply(session, message);
+
+  try {
+    return { ...JSON.parse(content), source: 'sumopod' };
+  } catch {
+    return fallbackIntakeReply(session, message);
+  }
+}
+
+function createIntakeSession() {
+  const id = `intake-${randomUUID()}`;
+  const session = {
+    id,
+    messages: [],
+    ready_for_payment: false,
+    collected: {},
+    created_at: new Date().toISOString()
+  };
+  intakeSessions.set(id, session);
+  return session;
 }
 
 function readBody(req) {
@@ -87,6 +210,60 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && url.pathname === '/consultation/demo') {
       sendJson(res, 200, demoConsultation);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/intake/start') {
+      const session = createIntakeSession();
+      const reply = 'Halo, saya asisten intake CareClaw. Ceritakan keluhan utama Anda, sejak kapan mulai, dan gejala yang paling mengganggu.';
+      session.messages.push({ role: 'assistant', content: reply });
+      sendJson(res, 200, {
+        session_id: session.id,
+        reply,
+        ready_for_payment: false,
+        missing_fields: ['chief_complaint', 'duration', 'severity'],
+        collected: session.collected
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/intake/message') {
+      const body = await readBody(req);
+      const sessionId = String(body.session_id || '');
+      const message = String(body.message || '').trim();
+      const session = intakeSessions.get(sessionId);
+      if (!session) {
+        sendJson(res, 404, { error: 'Intake session not found' });
+        return;
+      }
+      if (!message) {
+        sendJson(res, 400, { error: 'Message is required' });
+        return;
+      }
+      session.messages.push({ role: 'user', content: message });
+      const result = await runIntakeAi(session, message);
+      session.ready_for_payment = Boolean(result.ready_for_payment);
+      session.collected = result.collected || session.collected;
+      session.messages.push({ role: 'assistant', content: result.reply });
+      sendJson(res, 200, {
+        session_id: session.id,
+        reply: result.reply,
+        ready_for_payment: session.ready_for_payment,
+        missing_fields: result.missing_fields || [],
+        collected: session.collected,
+        source: result.source || 'agent'
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname.startsWith('/intake/status/')) {
+      const sessionId = url.pathname.split('/').pop() || '';
+      const session = intakeSessions.get(sessionId);
+      if (!session) {
+        sendJson(res, 404, { error: 'Intake session not found' });
+        return;
+      }
+      sendJson(res, 200, session);
       return;
     }
 

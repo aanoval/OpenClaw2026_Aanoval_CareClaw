@@ -39,11 +39,13 @@
 
         <section class="panel patient-panel" id="patientPanel">
           <label for="patientMessage">Patient message</label>
-          <textarea id="patientMessage">I have had fever and cough for three days.</textarea>
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <textarea id="patientMessage" placeholder="Tulis keluhan Anda di sini...">Saya demam dan batuk sejak 3 hari.</textarea>
           <div class="actions">
-            <button id="startConsultation" type="button">Start intake</button>
+            <button id="startConsultation" type="button">Send</button>
             <button id="mockVoice" type="button" class="secondary">Voice note</button>
           </div>
+          <button id="createPayment" type="button" class="payment-button hidden">Create DOKU payment link</button>
         </section>
 
         <section class="panel doctor-panel hidden" id="doctorPanel">

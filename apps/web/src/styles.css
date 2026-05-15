@@ -200,6 +200,34 @@ textarea {
   resize: vertical;
 }
 
+.chat-log {
+  min-height: 170px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bubble {
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.35;
+  background: white;
+}
+
+.bubble.agent {
+  background: var(--mint);
+  justify-self: start;
+}
+
+.bubble.patient {
+  background: var(--sky);
+  justify-self: end;
+}
+
 .actions,
 .login-grid {
   display: grid;
@@ -209,6 +237,12 @@ textarea {
 
 .actions {
   grid-template-columns: 1fr 1fr;
+}
+
+.payment-button {
+  width: 100%;
+  margin-top: 12px;
+  background: var(--butter);
 }
 
 .hidden {
