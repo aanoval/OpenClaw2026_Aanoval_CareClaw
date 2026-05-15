@@ -197,6 +197,34 @@ doctor final approval
 final delivery
 ```
 
+## Web App Demo
+
+Build the mobile-first PWA shell:
+
+```bash
+npm install
+npm run build
+```
+
+Run the demo API locally:
+
+```bash
+npm run start:api
+```
+
+The API listens on `127.0.0.1:8050` by default and exposes:
+
+```text
+GET  /health
+POST /login
+GET  /consultation/demo
+POST /consultation/start
+POST /payment/mock
+POST /doctor/approve
+```
+
+Doctor login is intentionally minimal for the hackathon demo and can be changed with `DOCTOR_USERNAME` and `DOCTOR_PASSWORD` environment variables.
+
 ## Status
 
 Early hackathon project scaffold.

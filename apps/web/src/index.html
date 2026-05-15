@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#fff4df" />
+    <meta name="description" content="CareClaw multi-agent doctor-patient consultation demo." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>CareClaw</title>
+  </head>
+  <body>
+    <div class="desktop-shell">
+      <main class="phone" aria-label="CareClaw mobile app">
+        <section class="topbar">
+          <div>
+            <p class="eyebrow">CareClaw</p>
+            <h1>Guided care, doctor reviewed.</h1>
+          </div>
+          <button class="icon-button" id="roleToggle" type="button">Doctor</button>
+        </section>
+
+        <section class="scene" aria-label="Consultation progress">
+          <div class="clinic-card">
+            <div class="agent-orbit">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div>
+              <p class="label">Agent workflow</p>
+              <h2 id="sceneTitle">Patient intake is ready</h2>
+              <p id="sceneText">Describe symptoms by text or voice note. The intake agent will structure the conversation before payment and doctor review.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="timeline" id="timeline" aria-label="Agent timeline"></section>
+
+        <section class="panel patient-panel" id="patientPanel">
+          <label for="patientMessage">Patient message</label>
+          <textarea id="patientMessage">I have had fever and cough for three days.</textarea>
+          <div class="actions">
+            <button id="startConsultation" type="button">Start intake</button>
+            <button id="mockVoice" type="button" class="secondary">Voice note</button>
+          </div>
+        </section>
+
+        <section class="panel doctor-panel hidden" id="doctorPanel">
+          <label for="doctorUser">Doctor login</label>
+          <div class="login-grid">
+            <input id="doctorUser" placeholder="Username" autocomplete="username" />
+            <input id="doctorPass" placeholder="Password" type="password" autocomplete="current-password" />
+          </div>
+          <div class="actions">
+            <button id="doctorLogin" type="button">Login</button>
+            <button id="approveFinal" type="button" class="secondary">Approve final</button>
+          </div>
+        </section>
+
+        <section class="brief" id="brief">
+          <p class="label">Doctor brief</p>
+          <p id="briefText">Waiting for workflow activity.</p>
+        </section>
+      </main>
+    </div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

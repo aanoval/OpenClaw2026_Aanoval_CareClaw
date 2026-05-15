@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "demo": "tsx src/demo.ts",
-    "build": "tsc --noEmit"
+    "build": "npm run build:types && npm run build:web",
+    "build:types": "tsc --noEmit",
+    "build:web": "node apps/web/build.mjs",
+    "start:api": "node apps/api/server.js"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

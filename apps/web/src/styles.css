@@ -1,0 +1,233 @@
+:root {
+  --ink: #24160f;
+  --muted: #69574b;
+  --paper: #fffaf0;
+  --cream: #fff4df;
+  --peach: #ffb68a;
+  --mint: #9fe3c1;
+  --sky: #a6d8ff;
+  --butter: #ffd86b;
+  --line: #24160f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 182, 138, 0.35), transparent 26%),
+    radial-gradient(circle at 80% 20%, rgba(166, 216, 255, 0.45), transparent 24%),
+    linear-gradient(180deg, #fff7e8, #eaf8f1);
+}
+
+.desktop-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.phone {
+  width: min(430px, 100%);
+  min-height: min(900px, calc(100vh - 40px));
+  border: 4px solid var(--line);
+  border-radius: 34px;
+  background: var(--cream);
+  box-shadow: 0 12px 0 var(--line), 0 28px 60px rgba(36, 22, 15, 0.18);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 22px 20px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.eyebrow,
+.label {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.05;
+}
+
+h1 {
+  font-size: 29px;
+  max-width: 280px;
+}
+
+h2 {
+  font-size: 21px;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 3px solid var(--line);
+  border-radius: 999px;
+  background: var(--peach);
+  color: var(--ink);
+  font-weight: 900;
+  padding: 12px 16px;
+  box-shadow: 0 4px 0 var(--line);
+}
+
+.icon-button,
+.secondary {
+  background: white;
+}
+
+.scene {
+  padding: 8px 18px 12px;
+}
+
+.clinic-card,
+.panel,
+.brief {
+  border: 3px solid var(--line);
+  border-radius: 24px;
+  background: var(--paper);
+  box-shadow: 0 5px 0 var(--line);
+}
+
+.clinic-card {
+  padding: 16px;
+  min-height: 180px;
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+.agent-orbit {
+  height: 120px;
+  border: 3px solid var(--line);
+  border-radius: 32px;
+  background: linear-gradient(135deg, var(--mint), var(--sky));
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-orbit span {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  border: 3px solid var(--line);
+  border-radius: 50%;
+  background: var(--butter);
+  animation: float 3s ease-in-out infinite;
+}
+
+.agent-orbit span:nth-child(1) { left: 18px; top: 22px; }
+.agent-orbit span:nth-child(2) { right: 18px; top: 44px; animation-delay: 0.4s; background: white; }
+.agent-orbit span:nth-child(3) { left: 42px; bottom: 16px; animation-delay: 0.8s; background: var(--peach); }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.timeline {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 18px 14px;
+}
+
+.chip {
+  flex: 0 0 auto;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.chip.done {
+  background: var(--mint);
+}
+
+.panel,
+.brief {
+  margin: 0 18px 14px;
+  padding: 16px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+textarea,
+input {
+  width: 100%;
+  border: 3px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  padding: 12px;
+  color: var(--ink);
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.actions,
+.login-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.hidden {
+  display: none;
+}
+
+.brief {
+  margin-top: auto;
+}
+
+@media (max-width: 520px) {
+  .desktop-shell {
+    padding: 0;
+  }
+
+  .phone {
+    min-height: 100vh;
+    border-radius: 0;
+    border-width: 0;
+    box-shadow: none;
+  }
+}
