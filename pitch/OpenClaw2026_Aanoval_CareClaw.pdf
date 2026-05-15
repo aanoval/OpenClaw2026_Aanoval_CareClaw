@@ -1,0 +1,166 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 1273 >>
+stream
+q 0.94 0.98 1 rg 0 0 960 540 re f Q
+q 0.08 0.43 0.78 rg 0 0 960 18 re f Q
+q 0.82 0.94 1 rg 0 448 960 92 re f Q
+q 0.1 0.56 0.88 rg 58 438 82 7 re f Q
+BT 0.1 0.42 0.66 rg /F2 15 Tf 60 485 Td (OpenClaw2026_Aanoval_CareClaw) Tj ET
+BT 0.04 0.15 0.3 rg /F2 38 Tf 60 436 Td (Problem Statement) Tj ET
+BT 0.3 0.42 0.56 rg /F1 18 Tf 60 400 Td (Team Aanoval | CareClaw) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 338 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 338 Td (Online consultations often start with incomplete, unstructured patient chat.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 304 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 304 Td (Doctors lose time collecting basic history, checking red flags, and preparing notes.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 270 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 270 Td (Payment and doctor access are usually detached from the clinical workflow.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 236 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 236 Td (A basic chatbot is not enough: the workflow needs task execution, safety gates, and) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 213 Td (handoff.) Tj ET
+BT 0.36 0.48 0.6 rg /F1 12 Tf 818 34 Td (Slide 1 / 5) Tj ET
+BT 0.1 0.42 0.66 rg /F2 12 Tf 60 34 Td (CareClaw) Tj ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 1235 >>
+stream
+q 0.94 0.98 1 rg 0 0 960 540 re f Q
+q 0.08 0.43 0.78 rg 0 0 960 18 re f Q
+q 0.82 0.94 1 rg 0 448 960 92 re f Q
+q 0.1 0.56 0.88 rg 58 438 82 7 re f Q
+BT 0.1 0.42 0.66 rg /F2 15 Tf 60 485 Td (Solution Overview) Tj ET
+BT 0.04 0.15 0.3 rg /F2 38 Tf 60 436 Td (CareClaw) Tj ET
+BT 0.3 0.42 0.56 rg /F1 18 Tf 60 400 Td (A multi-agent healthcare communication system built around OpenClaw.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 338 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 338 Td (Patient starts from a mobile-first PWA with guided intake.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 304 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 304 Td (OpenClaw runs the autonomous consultation handoff task.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 270 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 270 Td (Specialized agents structure symptoms, detect safety signals, create payment gates,) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 247 Td (and brief doctors.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 213 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 213 Td (Doctors remain the final medical decision makers.) Tj ET
+BT 0.36 0.48 0.6 rg /F1 12 Tf 818 34 Td (Slide 2 / 5) Tj ET
+BT 0.1 0.42 0.66 rg /F2 12 Tf 60 34 Td (CareClaw) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 1262 >>
+stream
+q 0.94 0.98 1 rg 0 0 960 540 re f Q
+q 0.08 0.43 0.78 rg 0 0 960 18 re f Q
+q 0.82 0.94 1 rg 0 448 960 92 re f Q
+q 0.1 0.56 0.88 rg 58 438 82 7 re f Q
+BT 0.1 0.42 0.66 rg /F2 15 Tf 60 485 Td (AI Agent Workflow) Tj ET
+BT 0.04 0.15 0.3 rg /F2 38 Tf 60 436 Td (Autonomous Handoff Architecture) Tj ET
+BT 0.3 0.42 0.56 rg /F1 18 Tf 60 400 Td (The visible product task is not a chat reply; it is a completed workflow artifact.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 338 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 338 Td (Patient PWA -> API -> OpenClaw Intake Bridge -> Orchestrator.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 304 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 304 Td (Orchestrator -> Symptom Extraction -> Safety Gate -> Payment Agent -> Doctor Briefing.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 270 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 270 Td (Output includes agent trace, tool calls, handoffs, payment gate, and doctor briefing.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 236 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 236 Td (The workflow continues until the consultation handoff task is completed.) Tj ET
+BT 0.36 0.48 0.6 rg /F1 12 Tf 818 34 Td (Slide 3 / 5) Tj ET
+BT 0.1 0.42 0.66 rg /F2 12 Tf 60 34 Td (CareClaw) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 1325 >>
+stream
+q 0.94 0.98 1 rg 0 0 960 540 re f Q
+q 0.08 0.43 0.78 rg 0 0 960 18 re f Q
+q 0.82 0.94 1 rg 0 448 960 92 re f Q
+q 0.1 0.56 0.88 rg 58 438 82 7 re f Q
+BT 0.1 0.42 0.66 rg /F2 15 Tf 60 485 Td (Key Features & Tech Stack) Tj ET
+BT 0.04 0.15 0.3 rg /F2 38 Tf 60 436 Td (What Works Now) Tj ET
+BT 0.3 0.42 0.56 rg /F1 18 Tf 60 400 Td (Designed to be reproducible, inspectable, and deployable.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 338 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 338 Td (OpenClaw workspace, bridge, and Docker runtime.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 304 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 304 Td (Autonomous consultation handoff demo and live API endpoints.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 270 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 270 Td (DOKU-compatible payment flow with QRIS and Virtual Account path.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 236 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 236 Td (Patient PWA, hidden doctor workspace, doctor queue, and approval gate.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 202 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 202 Td (Node.js, TypeScript, Docker Compose, Nginx, vanilla PWA.) Tj ET
+BT 0.36 0.48 0.6 rg /F1 12 Tf 818 34 Td (Slide 4 / 5) Tj ET
+BT 0.1 0.42 0.66 rg /F2 12 Tf 60 34 Td (CareClaw) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 1379 >>
+stream
+q 0.94 0.98 1 rg 0 0 960 540 re f Q
+q 0.08 0.43 0.78 rg 0 0 960 18 re f Q
+q 0.82 0.94 1 rg 0 448 960 92 re f Q
+q 0.1 0.56 0.88 rg 58 438 82 7 re f Q
+BT 0.1 0.42 0.66 rg /F2 15 Tf 60 485 Td (Future Development / Impact) Tj ET
+BT 0.04 0.15 0.3 rg /F2 38 Tf 60 436 Td (From Demo To Clinic Workflow) Tj ET
+BT 0.3 0.42 0.56 rg /F1 18 Tf 60 400 Td (AI handles workflow; doctors handle medical decisions.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 338 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 338 Td (Reduce doctor intake burden and improve consultation readiness.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 304 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 304 Td (Add production payment callbacks, scheduling, and multi-doctor routing.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 270 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 270 Td (Support voice-note intake and WhatsApp continuation.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 236 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 236 Td (Improve medical RAG, red-flag scoring, and clinic-specific agent skills.) Tj ET
+BT 0.08 0.48 0.78 rg /F2 20 Tf 74 202 Td (•) Tj ET
+BT 0.08 0.15 0.25 rg /F1 18 Tf 102 202 Td (Make safer, faster, and more meaningful doctor-patient communication accessible.) Tj ET
+BT 0.36 0.48 0.6 rg /F1 12 Tf 818 34 Td (Slide 5 / 5) Tj ET
+BT 0.1 0.42 0.66 rg /F2 12 Tf 60 34 Td (CareClaw) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 13 0 R /MediaBox [0 0 960 540] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 11 0 R >>
+endobj
+13 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R 12 0 R] /Count 5 >>
+endobj
+14 0 obj
+<< /Type /Catalog /Pages 13 0 R >>
+endobj
+xref
+0 15
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000001478 00000 n 
+0000001615 00000 n 
+0000002901 00000 n 
+0000003038 00000 n 
+0000004351 00000 n 
+0000004488 00000 n 
+0000005864 00000 n 
+0000006002 00000 n 
+0000007433 00000 n 
+0000007572 00000 n 
+0000007656 00000 n 
+trailer
+<< /Size 15 /Root 14 0 R >>
+startxref
+7707
+%%EOF
