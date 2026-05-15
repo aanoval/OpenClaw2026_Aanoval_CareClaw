@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://careclaw.dev/schemas/consultation-state.schema.json",
+  "title": "CareClaw Consultation State",
+  "description": "Structured state shared by CareClaw agents during a payment-gated, doctor-reviewed consultation workflow.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "consultation_id",
+    "status",
+    "patient",
+    "intake",
+    "symptoms",
+    "payment",
+    "doctor_brief",
+    "doctor_chat",
+    "post_consultation",
+    "doctor_review",
+    "final_delivery",
+    "audit"
+  ],
+  "properties": {
+    "consultation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "intake_in_progress",
+        "intake_completed",
+        "symptoms_structured",
+        "payment_required",
+        "payment_pending",
+        "payment_paid",
+        "doctor_brief_ready",
+        "doctor_chat_active",
+        "doctor_chat_ended",
+        "post_consultation_processing",
+        "doctor_review_ready",
+        "doctor_approved",
+        "final_delivery_sent",
+        "payment_failed",
+        "doctor_required_emergency_escalation",
+        "consultation_cancelled",
+        "workflow_error"
+      ]
+    },
+    "patient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_name", "anonymous", "input_modes"],
+      "properties": {
+        "display_name": {
+          "type": ["string", "null"]
+        },
+        "anonymous": {
+          "type": "boolean"
+        },
+        "input_modes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text", "voice_note"]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "intake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "chief_complaint", "duration", "needs_more_info", "next_question"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "in_progress", "completed"]
+        },
+        "chief_complaint": {
+          "type": ["string", "null"]
+        },
+        "duration": {
+          "type": ["string", "null"]
+        },
+        "needs_more_info": {
+          "type": "boolean"
+        },
+        "next_question": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "symptoms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "items", "severity", "red_flags", "doctor_review_required"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "structured", "red_flag_detected"]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["mild", "moderate", "severe", "unknown"]
+        },
+        "red_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "doctor_review_required": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "invoice_id", "payment_url", "consultation_unlocked"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_required", "required", "pending", "paid", "failed"]
+        },
+        "invoice_id": {
+          "type": ["string", "null"]
+        },
+        "payment_url": {
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "consultation_unlocked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "doctor_brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary", "key_points", "red_flag_summary"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "ready"]
+        },
+        "summary": {
+          "type": ["string", "null"]
+        },
+        "key_points": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "red_flag_summary": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "doctor_chat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "message_count", "ended_by_doctor"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "active", "ended"]
+        },
+        "message_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ended_by_doctor": {
+          "type": "boolean"
+        }
+      }
+    },
+    "post_consultation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "soap_ready", "prescription_draft_ready", "education_ready"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "processing", "ready"]
+        },
+        "soap_ready": {
+          "type": "boolean"
+        },
+        "prescription_draft_ready": {
+          "type": "boolean"
+        },
+        "education_ready": {
+          "type": "boolean"
+        }
+      }
+    },
+    "doctor_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "approved", "revision_requested", "patient_delivery_allowed"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_ready", "ready", "approved", "revision_requested"]
+        },
+        "approved": {
+          "type": "boolean"
+        },
+        "revision_requested": {
+          "type": "boolean"
+        },
+        "patient_delivery_allowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "final_delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "delivered_at", "channel"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "ready", "sent", "failed"]
+        },
+        "delivered_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "channel": {
+          "type": ["string", "null"],
+          "enum": ["web", "demo", "email", "whatsapp", null]
+        }
+      }
+    },
+    "audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event", "agent", "created_at"],
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    }
+  }
+}
