@@ -167,6 +167,7 @@ Runtime design:
 
 - patient intake chat is handled by a lightweight direct intake assistant for fast back-and-forth anamnesis
 - OpenClaw is triggered after intake is ready for handoff, not on every chat bubble
+- after the configured turn limit, default `INTAKE_HANDOFF_TURN_LIMIT=10`, the system forces an intake handoff check instead of letting anamnesis run forever
 - OpenClaw then runs the autonomous handoff task: symptom structuring, safety decision, payment gate, doctor briefing, and trace output
 - Payment Agent owns the payment method flow after the handoff gate, so payment remains part of the agent workflow instead of being hidden in the UI
 

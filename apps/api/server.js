@@ -49,6 +49,7 @@ const dokuConfig = {
 };
 
 const supportedVaBanks = ['BNI', 'BSI', 'CIMB', 'DANAMON', 'PERMATA', 'BRI', 'MANDIRI'];
+const handoffTurnLimit = Number(process.env.INTAKE_HANDOFF_TURN_LIMIT || 10);
 
 const directVaChannels = {
   BNI: 'bni-virtual-account',
@@ -522,7 +523,11 @@ function normalizeIntakeResult(session, result) {
   const userTurns = session.messages.filter((item) => item.role === 'user').length;
   const enoughCoreData = Boolean(collected.chief_complaint && collected.duration && collected.severity);
   const enoughSafetyData = Boolean(collected.allergies || userTurns >= 3) && Boolean(collected.current_medication || userTurns >= 3);
-  const readyForPayment = Boolean(result.ready_for_payment) || (userTurns >= 3 && enoughCoreData && enoughSafetyData);
+  const reachedHandoffLimit = userTurns >= handoffTurnLimit;
+  const criticalMissing = ['chief_complaint', 'duration', 'severity'].filter((field) => missing.has(field));
+  const readyForPayment = Boolean(result.ready_for_payment)
+    || (userTurns >= 3 && enoughCoreData && enoughSafetyData)
+    || (reachedHandoffLimit && criticalMissing.length === 0);
 
   return {
     ...result,
@@ -530,7 +535,7 @@ function normalizeIntakeResult(session, result) {
     missing_fields: readyForPayment ? [] : Array.from(missing).slice(0, 4),
     ready_for_payment: readyForPayment,
     reply: readyForPayment
-      ? 'Terima kasih. Informasi awal sudah cukup. Silakan lanjut bayar agar Anda masuk antrean chat dokter.'
+      ? 'Informasi awal sudah cukup. Saya proses ringkasannya dulu, lalu Anda bisa pilih pembayaran untuk masuk antrean dokter.'
       : result.reply
   };
 }

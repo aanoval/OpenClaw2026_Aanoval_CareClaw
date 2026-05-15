@@ -294,7 +294,8 @@ async function sendPatientMessage() {
       state.intakeReadyForPayment = true;
       setStage('pay');
       setScene('Siap bayar', 'Lanjutkan agar masuk antrean dokter.');
-      refreshAgentProcess(message).catch(() => {});
+      await refreshAgentProcess(message).catch(() => {});
+      if (!state.paymentSessionId) await createPaymentSession();
     } else {
       setStage('chat');
       setScene('Lanjut jawab', 'Saya bantu rangkum pelan-pelan.');

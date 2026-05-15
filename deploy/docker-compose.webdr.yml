@@ -25,6 +25,7 @@ services:
       OPENCLAW_AGENT_URL: http://careclaw-openclaw:18800/agent
       OPENCLAW_AGENT_TIMEOUT_MS: 45000
       OPENCLAW_INTAKE_PER_TURN: "false"
+      INTAKE_HANDOFF_TURN_LIMIT: 10
     volumes:
       - careclaw-data:/data
     ports:
