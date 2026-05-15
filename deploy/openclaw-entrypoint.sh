@@ -6,6 +6,7 @@ OPENCLAW_WORKSPACE_DIR="${OPENCLAW_WORKSPACE_DIR:-$OPENCLAW_HOME_DIR/workspace}"
 OPENCLAW_MODEL_PROVIDER="${OPENCLAW_MODEL_PROVIDER:-sumopod}"
 OPENCLAW_MODEL_ID="${OPENCLAW_MODEL_ID:-gpt-4o-mini}"
 OPENCLAW_MODEL_REF="${OPENCLAW_MODEL_PROVIDER}/${OPENCLAW_MODEL_ID}"
+OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-careclaw-local-token}"
 
 mkdir -p "$OPENCLAW_HOME_DIR" "$OPENCLAW_WORKSPACE_DIR"
 cp -R /workspace-template/. "$OPENCLAW_WORKSPACE_DIR/"
@@ -52,7 +53,7 @@ EOF
 
 case "${1:-gateway}" in
   gateway)
-    exec openclaw gateway run --bind lan --auth none --port "${OPENCLAW_GATEWAY_PORT:-18789}" --allow-unconfigured --verbose
+    exec openclaw gateway run --bind lan --auth token --token "$OPENCLAW_GATEWAY_TOKEN" --port "${OPENCLAW_GATEWAY_PORT:-18789}" --allow-unconfigured --verbose
     ;;
   agent-check)
     shift || true
