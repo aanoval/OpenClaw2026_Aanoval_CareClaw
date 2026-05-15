@@ -57,7 +57,7 @@ case "${1:-gateway}" in
     ;;
   agent-check)
     shift || true
-    exec openclaw agent --local --message "${OPENCLAW_CHECK_MESSAGE:-CareClaw health check: reply with one short sentence confirming the healthcare agent workspace is loaded.}" --thinking low "$@"
+    exec openclaw agent --local --agent main --message "${OPENCLAW_CHECK_MESSAGE:-CareClaw health check: reply with one short sentence confirming the healthcare agent workspace is loaded.}" --thinking low "$@"
     ;;
   *)
     exec openclaw "$@"
