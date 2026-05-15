@@ -5,8 +5,10 @@ export function createDemoState(): ConsultationState {
     consultation_id: 'demo-consultation-001',
     status: 'created',
     symptoms: [],
+    redFlags: [],
     paymentPaid: false,
     doctorApproved: false,
+    doctorMessages: [],
     audit: ['consultation.created']
   };
 }
