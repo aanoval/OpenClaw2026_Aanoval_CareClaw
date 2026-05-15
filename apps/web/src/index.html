@@ -49,6 +49,38 @@
           <button id="createPayment" type="button" class="payment-button hidden">Lanjut ke pembayaran</button>
         </section>
 
+        <section class="panel doctor-panel hidden" id="doctorPanel">
+          <div id="doctorLoginPanel">
+            <label for="doctorUser">Akses dokter</label>
+            <div class="login-grid">
+              <input id="doctorUser" autocomplete="username" placeholder="Username dokter" />
+              <input id="doctorPass" autocomplete="current-password" type="password" placeholder="Password" />
+              <button id="doctorLogin" type="button">Masuk</button>
+            </div>
+          </div>
+
+          <div id="doctorWorkspace" class="hidden">
+            <div class="doctor-header">
+              <div>
+                <p class="label">Antrian</p>
+                <h2 id="doctorTitle">Pasien menunggu</h2>
+              </div>
+              <button id="refreshQueue" type="button" class="secondary">Refresh</button>
+            </div>
+            <div id="doctorQueue" class="doctor-queue"></div>
+            <div id="doctorCase" class="doctor-case hidden">
+              <div id="doctorSummary" class="doctor-summary"></div>
+              <div id="doctorChatLog" class="chat-log doctor-chat-log"></div>
+              <div id="doctorSuggestions" class="doctor-suggestions"></div>
+              <textarea id="doctorMessage" placeholder="Tulis pesan dokter ke pasien..."></textarea>
+              <div class="actions">
+                <button id="sendDoctorMessage" type="button">Kirim</button>
+                <button id="endConsultation" type="button" class="secondary">Final review</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="brief" id="brief">
           <p class="label">Status</p>
           <p id="briefText">Menyiapkan sesi konsultasi.</p>

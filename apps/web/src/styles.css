@@ -267,6 +267,66 @@ textarea {
   grid-template-columns: 1fr 1fr;
 }
 
+.doctor-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.doctor-header h2 {
+  font-size: 19px;
+}
+
+.doctor-queue,
+.doctor-suggestions {
+  display: grid;
+  gap: 10px;
+}
+
+.queue-item,
+.doctor-summary,
+.suggestion-item {
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  padding: 11px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.queue-item {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  border-radius: 16px;
+  box-shadow: 0 3px 0 var(--line);
+}
+
+.queue-item strong {
+  font-size: 14px;
+}
+
+.doctor-case {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.doctor-chat-log {
+  min-height: 140px;
+}
+
+.bubble.doctor {
+  background: var(--butter);
+  justify-self: end;
+}
+
+.bubble.agent {
+  max-width: 92%;
+}
+
 .payment-button {
   width: 100%;
   margin-top: 12px;
