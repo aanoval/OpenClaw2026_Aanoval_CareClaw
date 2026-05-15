@@ -1,52 +1,81 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#fff4df" />
-    <meta name="description" content="CareClaw multi-agent doctor-patient consultation demo." />
+    <meta name="description" content="CareClaw helps patients prepare a doctor consultation from their phone." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/styles.css" />
     <title>CareClaw</title>
   </head>
   <body>
     <div class="desktop-shell">
-      <main class="phone" aria-label="CareClaw mobile app">
-        <section class="topbar">
+      <main class="phone" aria-label="CareClaw app">
+        <header class="topbar">
           <div>
             <p class="eyebrow">CareClaw</p>
-            <h1>Chat dulu, dokter meninjau.</h1>
+            <h1 id="pageTitle">Ceritakan keluhan</h1>
           </div>
-          <div class="status-pill" id="stagePill">Intake</div>
+          <div class="status-pill" id="stagePill">Tamu</div>
+        </header>
+
+        <section class="mini-status" id="miniStatus">
+          <strong id="sceneTitle">Mulai chat</strong>
+          <span id="sceneText">Jawab singkat saja. Dokter akan melihat ringkasannya.</span>
         </section>
 
-        <section class="scene" aria-label="Consultation progress">
-          <div class="clinic-card">
-            <div class="agent-orbit">
-              <span></span>
-              <span></span>
-              <span></span>
+        <section class="screen patient-screen" id="patientPanel">
+          <section class="tab-view" data-tab-view="chat">
+            <div class="chat-log" id="chatLog" aria-live="polite"></div>
+            <div id="quickChoices" class="quick-choices hidden"></div>
+            <div id="paymentChoices" class="payment-choices hidden"></div>
+            <div id="paymentResult" class="payment-result hidden"></div>
+            <div class="composer">
+              <textarea id="patientMessage" placeholder="Tulis keluhan Anda..."></textarea>
+              <button id="startConsultation" type="button">Kirim</button>
             </div>
-            <div>
-              <p class="label">Agent workflow</p>
-              <h2 id="sceneTitle">Ceritakan keluhan Anda</h2>
-              <p id="sceneText">Saya akan menanyakan beberapa hal penting agar dokter menerima ringkasan yang rapi.</p>
+            <div class="compact-actions">
+              <button id="mockVoice" type="button" class="secondary">Voice</button>
+              <button id="createPayment" type="button" class="payment-button hidden">Bayar</button>
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="timeline" id="timeline" aria-label="Agent timeline"></section>
+          <section class="tab-view hidden" data-tab-view="doctor">
+            <div class="empty-state" id="doctorPatientState">
+              <strong>Belum ada dokter</strong>
+              <span>Selesaikan chat awal dan pembayaran untuk masuk antrean.</span>
+            </div>
+          </section>
 
-        <section class="panel patient-panel" id="patientPanel">
-          <label for="patientMessage">Chat konsultasi</label>
-          <div class="chat-log" id="chatLog" aria-live="polite"></div>
-          <div id="quickChoices" class="quick-choices hidden"></div>
-          <textarea id="patientMessage" placeholder="Tulis keluhan Anda di sini..."></textarea>
-          <div class="actions">
-            <button id="startConsultation" type="button">Kirim</button>
-            <button id="mockVoice" type="button" class="secondary">Voice note</button>
-          </div>
-          <button id="createPayment" type="button" class="payment-button hidden">Lanjut ke pembayaran</button>
+          <section class="tab-view hidden" data-tab-view="history">
+            <div id="historyGate" class="empty-state">
+              <strong>Masuk dulu</strong>
+              <span>Riwayat chat dan pembayaran tersimpan setelah Anda login.</span>
+            </div>
+            <div id="historyList" class="history-list hidden"></div>
+          </section>
+
+          <section class="tab-view hidden" data-tab-view="account">
+            <div id="accountCard" class="account-card"></div>
+            <div id="authForms" class="auth-forms">
+              <div class="auth-tabs">
+                <button id="showLogin" type="button" class="secondary active">Login</button>
+                <button id="showRegister" type="button" class="secondary">Daftar</button>
+              </div>
+              <div id="loginForm" class="form-stack">
+                <input id="loginEmail" inputmode="email" autocomplete="email" placeholder="email@gmail.com" />
+                <input id="loginPassword" autocomplete="current-password" type="password" placeholder="Password" />
+                <button id="patientLogin" type="button">Masuk</button>
+              </div>
+              <div id="registerForm" class="form-stack hidden">
+                <input id="registerEmail" inputmode="email" autocomplete="email" placeholder="email@gmail.com" />
+                <input id="registerPassword" autocomplete="new-password" type="password" placeholder="Password" />
+                <input id="registerConfirm" autocomplete="new-password" type="password" placeholder="Ulangi password" />
+                <button id="patientRegister" type="button">Daftar</button>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section class="panel doctor-panel hidden" id="doctorPanel">
@@ -75,20 +104,18 @@
               <textarea id="doctorMessage" placeholder="Tulis pesan dokter ke pasien..."></textarea>
               <div class="actions">
                 <button id="sendDoctorMessage" type="button">Kirim</button>
-                <button id="endConsultation" type="button" class="secondary">Final review</button>
+                <button id="endConsultation" type="button" class="secondary">Selesai</button>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="brief" id="brief">
-          <p class="label">Status</p>
-          <p id="briefText">Menyiapkan sesi konsultasi.</p>
-          <a id="paymentLink" class="payment-link hidden" href="#" target="_blank" rel="noreferrer">Buka pembayaran</a>
-          <div id="paymentChoices" class="payment-choices hidden"></div>
-          <div id="paymentResult" class="payment-result hidden"></div>
-          <p id="queueText" class="queue-text hidden">Menunggu konfirmasi pembayaran sebelum masuk antrean dokter.</p>
-        </section>
+        <nav class="bottom-nav" id="patientNav" aria-label="Navigasi pasien">
+          <button type="button" data-tab="chat" class="active">Chat</button>
+          <button type="button" data-tab="doctor">Dokter</button>
+          <button type="button" data-tab="history">Riwayat</button>
+          <button type="button" data-tab="account">Akun</button>
+        </nav>
       </main>
     </div>
     <script src="/app.js" type="module"></script>

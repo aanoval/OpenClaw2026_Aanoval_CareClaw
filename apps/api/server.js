@@ -402,7 +402,7 @@ function normalizeIntakeResult(session, result) {
     missing_fields: readyForPayment ? [] : Array.from(missing).slice(0, 4),
     ready_for_payment: readyForPayment,
     reply: readyForPayment
-      ? 'Terima kasih. Informasi anamnesis awal sudah cukup. Silakan lanjut membuat link pembayaran agar Anda masuk antrean chat dokter.'
+      ? 'Terima kasih. Informasi awal sudah cukup. Silakan lanjut bayar agar Anda masuk antrean chat dokter.'
       : result.reply
   };
 }
