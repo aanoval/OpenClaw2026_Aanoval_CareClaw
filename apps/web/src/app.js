@@ -93,8 +93,8 @@ async function api(path, options = {}) {
 }
 
 function setScene(title, text) {
-  sceneTitle.textContent = title;
-  sceneText.textContent = text;
+  if (sceneTitle) sceneTitle.textContent = title;
+  if (sceneText) sceneText.textContent = text;
 }
 
 function setStage(stage) {
