@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CareClaw Final Delivery",
+  "type": "object",
+  "required": ["status", "channel"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ready", "sent", "failed"]
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["web", "demo", "email", "whatsapp"]
+    }
+  }
+}

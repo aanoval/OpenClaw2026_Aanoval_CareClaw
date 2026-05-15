@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CareClaw Payment State",
+  "type": "object",
+  "required": ["status", "consultation_unlocked"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["required", "pending", "paid", "failed"]
+    },
+    "invoice_id": { "type": ["string", "null"] },
+    "consultation_unlocked": { "type": "boolean" }
+  }
+}

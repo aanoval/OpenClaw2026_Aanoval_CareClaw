@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CareClaw Agent Output",
+  "type": "object",
+  "required": ["agent", "event", "consultation_id", "payload"],
+  "properties": {
+    "agent": { "type": "string" },
+    "event": { "type": "string" },
+    "consultation_id": { "type": "string" },
+    "payload": { "type": "object" }
+  }
+}

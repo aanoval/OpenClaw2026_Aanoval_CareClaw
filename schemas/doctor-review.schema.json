@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CareClaw Doctor Review",
+  "type": "object",
+  "required": ["status", "approved", "patient_delivery_allowed"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["not_ready", "ready", "approved", "revision_requested"]
+    },
+    "approved": { "type": "boolean" },
+    "patient_delivery_allowed": { "type": "boolean" }
+  }
+}
