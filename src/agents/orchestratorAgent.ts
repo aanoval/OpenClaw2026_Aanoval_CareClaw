@@ -14,7 +14,7 @@ export function runOrchestratorAgent(state: ConsultationState): AgentResult<Orch
   if (state.status === 'intake_completed') nextEvent = 'symptoms.extraction.requested';
   if (state.status === 'symptoms_structured') nextEvent = 'payment.requested';
   if (state.status === 'payment_paid') nextEvent = 'doctor.brief.requested';
-  if (state.status === 'doctor_brief_ready') nextEvent = 'doctor.chat.requested';
+  if (state.status === 'doctor_brief_ready') nextEvent = state.redFlags.length > 0 ? 'urgent_doctor_review.required' : 'doctor.chat.requested';
   if (state.status === 'doctor_chat_ended') nextEvent = 'post_consultation.requested';
   if (state.status === 'doctor_approved') nextEvent = 'final_delivery.requested';
   if (state.status === 'final_delivery_sent') {
